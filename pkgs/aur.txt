@@ -1,0 +1,16 @@
+# AUR packages — installed via `paru -S --needed` by bootstrap.sh after paru
+# itself is bootstrapped from a git clone of paru-bin.
+# One per line, '#' comments and blank lines ignored.
+
+# --- shell (Noctalia + its runtime) -----------------------------------------
+quickshell              # Qt6/QML-based desktop shell runtime (Noctalia depends on it)
+noctalia-shell          # the actual Noctalia QML shell config bundle
+
+# --- gaming -----------------------------------------------------------------
+faugus-launcher         # Faugus, the clean way: AUR package, no source build,
+                        # bundles UMU, auto-fetches GE-Proton.
+
+# --- extras (commented; uncomment what you want) ----------------------------
+# protonup-qt           # GE-Proton/Wine-GE manager — Lutris/Faugus can also do this
+# heroic-games-launcher-bin   # Epic/GOG launcher
+# bottles                # Wine prefix manager

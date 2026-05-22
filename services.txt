@@ -1,0 +1,17 @@
+# runit services auto-enabled by bootstrap.sh.
+#
+# Artix runit layout (DIFFERENT from Void's):
+#   - service definitions live in /etc/runit/sv/<name>/
+#   - the "default" runlevel watches /etc/runit/runsvdir/default/
+#   - enable a service by symlinking it into that runsvdir, NOT into
+#     /var/service (which is Void's path).
+# bootstrap.sh handles this with the Artix-correct path. If the package
+# providing a service ships a runit dir at /etc/runit/sv/, we link it; if
+# the service is dbus/socket-activated only (e.g. some elogind setups),
+# bootstrap.sh skips it without failing.
+#
+# Order matters: dbus first; greetd last (after one interactive test).
+dbus
+NetworkManager
+elogind
+greetd

@@ -1,0 +1,83 @@
+# Packages from official Artix + Arch repos.
+# One per line, '#' comments and blank lines ignored. Installed by bootstrap.sh
+# via `pacman -S --needed`. Multilib must be enabled in /etc/pacman.conf —
+# bootstrap.sh does that before this list is installed.
+
+# --- base system ------------------------------------------------------------
+# (Assumes you installed Artix base-runit from the ISO; these are top-ups.)
+base-devel              # makepkg for AUR
+git
+curl
+chrony
+chrony-runit            # Artix runit service files for chrony
+runit-rc                # runit init scripts metapackage (no-op if already there)
+
+# --- networking + audio + session services ----------------------------------
+networkmanager
+networkmanager-runit
+dbus-runit
+elogind-runit           # pulls elogind too
+pipewire
+pipewire-pulse          # PulseAudio replacement
+pipewire-alsa
+wireplumber
+xdg-utils
+polkit
+polkit-gnome            # generic polkit agent; works under niri
+
+# --- display server / portals -----------------------------------------------
+# niri is Wayland-native; no Xorg server needed for the session, but
+# xorg-xwayland is required for any X11 client (most games, older apps).
+xorg-xwayland
+xdg-desktop-portal
+xdg-desktop-portal-gnome  # screencast + file pickers; works well with niri
+xdg-desktop-portal-gtk    # GTK fallback portal
+
+# --- niri + greetd ----------------------------------------------------------
+niri                    # scrollable-tiling Wayland compositor
+greetd
+greetd-tuigreet         # TUI greeter (lightweight, terminal-based)
+
+# --- terminal + small utilities ---------------------------------------------
+foot                    # tiny, fast Wayland-native terminal
+fuzzel                  # app launcher fallback (Noctalia provides its own,
+                        # but fuzzel is handy as a backup / for scripts)
+mako                    # notification daemon fallback (Noctalia provides
+                        # notifications; mako kept as a tested fallback)
+swaylock                # screen lock for Wayland
+swayidle                # idle daemon for auto-lock / dpms
+wl-clipboard            # wl-copy / wl-paste
+grim                    # screenshot
+slurp                   # region select (pairs with grim)
+brightnessctl           # backlight control (laptops; harmless on desktop)
+playerctl               # media-key control for media players
+pavucontrol             # PipeWire/Pulse mixer GUI
+
+# --- file management --------------------------------------------------------
+nautilus                # GTK file manager — works under niri, no KDE deps
+
+# --- nvidia (RTX 3090, Ampere → current branch, DKMS) -----------------------
+linux-headers           # required for DKMS
+nvidia-dkms
+nvidia-utils
+lib32-nvidia-utils      # MULTILIB — mandatory for Steam/Proton games
+nvidia-settings
+libva-nvidia-driver     # VA-API → NVDEC bridge (video acceleration)
+
+# --- gaming -----------------------------------------------------------------
+steam                   # from [multilib]
+lutris                  # from [extra]
+gamemode                # gamemoderun wrapper, CPU governor tweaks
+lib32-gamemode
+mangohud
+lib32-mangohud
+wine
+winetricks
+
+# --- fonts ------------------------------------------------------------------
+noto-fonts
+noto-fonts-emoji
+noto-fonts-cjk          # CJK coverage
+ttf-dejavu
+ttf-liberation
+ttf-jetbrains-mono      # nice mono for foot

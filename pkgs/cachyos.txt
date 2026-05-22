@@ -1,0 +1,38 @@
+# CachyOS layer — installed only when `bootstrap.sh --cachyos` is used.
+# See docs/06-cachyos-layer.md for the full story (and the parts NOT
+# automated by bootstrap.sh: hand-ported sysctl drops, scx-scheds runit
+# service, hand-picked udev I/O scheduler rules).
+#
+# Prereq: bootstrap.sh's --cachyos path has already added the CachyOS
+# keyring + v3 mirrorlists and re-run `pacman -Syyu`, so the x86-64-v3
+# optimized rebuilds have replaced Arch packages in-place. The list below
+# is the *extras* — the kernel and the userspace tuning daemons.
+
+# --- kernel -----------------------------------------------------------------
+# Default CachyOS kernel: BORE + sched-ext baked in. Good gaming + desktop.
+linux-cachyos
+linux-cachyos-headers       # MUST install with the kernel — nvidia-dkms uses it.
+
+# Alternates (uncomment ONE if you prefer it over linux-cachyos):
+# linux-cachyos-bore        # Pure BORE scheduler, no sched-ext. Snappy interactive.
+# linux-cachyos-lts         # CachyOS patches on the LTS base. Stability over bleeding-edge.
+# linux-cachyos-eevdf       # Stock EEVDF + CachyOS tunings.
+# linux-cachyos-rc          # Release-candidate. Do NOT use as a daily driver.
+
+# Safety net: keep linux-lts installed as an independent fallback boot entry.
+# Highly recommended — if a Cachy kernel update breaks nvidia-dkms or boot,
+# this is your "I can still log in" escape hatch. Uncomment to enable.
+# linux-lts
+# linux-lts-headers
+
+# --- userspace tuning -------------------------------------------------------
+# ananicy-cpp: per-app nice / scheduling-class daemon. The -runit variant
+# is from Artix's [system] repo; CachyOS supplies the rules file below.
+ananicy-cpp-runit
+cachyos-ananicy-rules-git
+
+# sched-ext userspace schedulers (scx_lavd / scx_rusty / scx_bpfland / ...).
+# NOT installed by default: the package ships only systemd units, so you'd
+# need to write /etc/runit/sv/scx/run yourself. docs/06 has a template.
+# Uncomment AFTER you've written that sv:
+# scx-scheds
