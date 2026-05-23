@@ -1,16 +1,20 @@
-# runit services auto-enabled by bootstrap.sh.
+# dinit services auto-enabled by bootstrap.sh.
 #
-# Artix runit layout (DIFFERENT from Void's):
-#   - service definitions live in /etc/runit/sv/<name>/
-#   - the "default" runlevel watches /etc/runit/runsvdir/default/
-#   - enable a service by symlinking it into that runsvdir, NOT into
-#     /var/service (which is Void's path).
-# bootstrap.sh handles this with the Artix-correct path. If the package
-# providing a service ships a runit dir at /etc/runit/sv/, we link it; if
-# the service is dbus/socket-activated only (e.g. some elogind setups),
-# bootstrap.sh skips it without failing.
+# Artix dinit layout:
+#   - service definitions live in /etc/dinit.d/<name> (or /usr/lib/dinit.d/
+#     for package defaults). Each is a declarative key=value file
+#     (type=process, command=..., depends-on=..., etc).
+#   - enable a service for boot with `dinitctl enable <name>`, which
+#     symlinks it under /etc/dinit.d/boot.d/ so the `boot` target pulls
+#     it in. NOT a symlink-into-runsvdir like runit.
+#   - inter-service ordering is declared in the service file itself
+#     (`depends-on = dbus`, `waits-for = elogind`), so dinit handles
+#     startup order — we don't enforce it by enable-order here.
 #
-# Order matters: dbus first; greetd last (after one interactive test).
+# bootstrap.sh enables each name below via `dinitctl enable`. If the
+# package providing a service ships a /etc/dinit.d/<name> file we enable
+# it; if no service file exists (e.g. some elogind setups are
+# dbus/socket-activated only), bootstrap.sh skips it without failing.
 dbus
 NetworkManager
 elogind

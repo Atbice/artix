@@ -95,7 +95,7 @@ minimal box; everything will still work.
   stderr — usually a QML import error pointing at a missing dep.
 - **Tray icons missing**: confirm `xdg-desktop-portal` is running with
   `systemctl --user status xdg-desktop-portal` — wait, no systemd: on
-  runit + elogind it's auto-spawned on D-Bus activation when an app first
+  dinit + elogind it's auto-spawned on D-Bus activation when an app first
   asks. `busctl --user list | grep portal` should show it after you open
   Firefox once.
 - **Icons render as boxes**: log out/in to refresh fontconfig caches; if

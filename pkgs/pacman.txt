@@ -4,19 +4,19 @@
 # bootstrap.sh does that before this list is installed.
 
 # --- base system ------------------------------------------------------------
-# (Assumes you installed Artix base-runit from the ISO; these are top-ups.)
+# (Assumes you installed Artix base-dinit from the ISO; these are top-ups.)
 base-devel              # makepkg for AUR
 git
 curl
 chrony
-chrony-runit            # Artix runit service files for chrony
-runit-rc                # runit init scripts metapackage (no-op if already there)
+chrony-dinit            # Artix dinit service file for chrony
+dinit-rc                # dinit boot scripts metapackage (no-op if already there)
 
 # --- networking + audio + session services ----------------------------------
 networkmanager
-networkmanager-runit
-dbus-runit
-elogind-runit           # pulls elogind too
+networkmanager-dinit
+dbus-dinit
+elogind-dinit           # pulls elogind too
 pipewire
 pipewire-pulse          # PulseAudio replacement
 pipewire-alsa

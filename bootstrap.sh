@@ -1,5 +1,5 @@
 #!/bin/sh
-# bootstrap.sh — idempotent Artix Linux (runit) provisioner for the gaming box.
+# bootstrap.sh — idempotent Artix Linux (dinit) provisioner for the gaming box.
 # Run ON THE NEW ARTIX BOX after a clean install (docs/01-install-artix.md).
 # Safe to re-run. Refuses to run on non-Artix. Never touches disk 1 / bootloader.
 #
@@ -152,17 +152,21 @@ run "$SUDO usermod -aG video,input '$TARGET_USER'"
 getent group gamemode >/dev/null && run "$SUDO usermod -aG gamemode '$TARGET_USER'" || true
 warn "Log out/in (or reboot) for group changes to apply."
 
-# --- 6. runit services (Artix layout) ---------------------------------------
-say "Enabling runit services in /etc/runit/runsvdir/default/"
-RUNSVDIR=/etc/runit/runsvdir/default
+# --- 6. dinit services (Artix layout) ---------------------------------------
+# `dinitctl enable <s>` symlinks the service under /etc/dinit.d/boot.d/ so
+# the `boot` target pulls it in at next boot AND brings it up now.
+# Idempotency: presence of the boot.d symlink is the source of truth.
+say "Enabling dinit services via dinitctl"
+BOOT_D=/etc/dinit.d/boot.d
 for s in $(pkglist "$REPO_DIR/services.txt"); do
-  if [ -e "$RUNSVDIR/$s" ]; then
+  if [ -e "$BOOT_D/$s" ] || [ -L "$BOOT_D/$s" ]; then
     echo "  $s already enabled"
-  elif [ -d "/etc/runit/sv/$s" ]; then
-    run "$SUDO ln -s /etc/runit/sv/$s $RUNSVDIR/"
+  elif [ -f "/etc/dinit.d/$s" ] || [ -L "/etc/dinit.d/$s" ] \
+    || [ -f "/usr/lib/dinit.d/$s" ] || [ -L "/usr/lib/dinit.d/$s" ]; then
+    run "$SUDO dinitctl enable $s"
     echo "  enabled $s"
   else
-    warn "no /etc/runit/sv/$s — skipped (dbus/socket-activated, or pkg not installed)"
+    warn "no /etc/dinit.d/$s — skipped (dbus/socket-activated, or pkg not installed)"
   fi
 done
 
@@ -251,14 +255,14 @@ CachyOS layer was installed. Additional steps:
   C1. At GRUB, pick "CachyOS" / "linux-cachyos" the FIRST boot to verify
       the new kernel boots cleanly and nvidia-dkms rebuilt against it.
       `uname -r` after login should mention cachyos.
-  C2. Enable ananicy-cpp (runit) so the CachyOS rules take effect:
-        sudo ln -s /etc/runit/sv/ananicy-cpp /etc/runit/runsvdir/default/
+  C2. Enable ananicy-cpp (dinit) so the CachyOS rules take effect:
+        sudo dinitctl enable ananicy-cpp
   C3. Manual tuning bits NOT automated (see docs/06-cachyos-layer.md):
         - sysctl drops in /etc/sysctl.d/
         - I/O scheduler udev rule in /etc/udev/rules.d/
-        - CPU governor runit service
-        - zram via Artix's zram-runit (if you want it)
-        - scx-scheds + a runit sv to launch a chosen scheduler
+        - CPU governor dinit service
+        - zram via Artix's zram-dinit (if you want it)
+        - scx-scheds + a dinit service file to launch a chosen scheduler
   C4. Snapshot before the next `pacman -Syu`. Rolling-rolling = doubled
       surface area for breakage; the Btrfs snapshot is your rollback.
 EOF

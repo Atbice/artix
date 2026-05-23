@@ -15,16 +15,16 @@ for per-app scheduling tweaks.
 - x86-64-v3 optimized rebuilds of normal Arch packages (Zen 3, your 5900X,
   is v3-capable; not v4 — that needs AVX-512 which arrived with Zen 4).
 - `linux-cachyos` kernel (BORE + sched-ext patches by default).
-- `ananicy-cpp` (runit variant from Artix) + CachyOS's ananicy rules.
+- `ananicy-cpp` (dinit variant from Artix) + CachyOS's ananicy rules.
 
 **Isn't:**
-- CachyOS-the-distro. We're cherry-picking the repos; init stays runit.
+- CachyOS-the-distro. We're cherry-picking the repos; init stays dinit.
 - `cachyos-settings` (the all-in-one tuning meta). It ships systemd units
   + scripts that assume systemd. We port the bits we want manually.
 - `power-profiles-daemon` / `thermald` (systemd-only on a desktop you
   don't need them).
 - `cachyos-zram-config` (uses `zram-generator`, systemd-only). Use Artix's
-  `zram-runit` if you want zram.
+  `zram-dinit` if you want zram.
 
 ## Is it worth the maintenance cost?
 
@@ -89,7 +89,7 @@ bottleneck and the perf delta is hard to measure.
    step pulls the v3 rebuilds in-place. (First-match-wins ordering means
    any package present in both CachyOS and Arch comes from CachyOS.)
 5. **Installs `pkgs/cachyos.txt`** at the end of the script:
-   `linux-cachyos` + `linux-cachyos-headers` + `ananicy-cpp-runit` +
+   `linux-cachyos` + `linux-cachyos-headers` + `ananicy-cpp-dinit` +
    `cachyos-ananicy-rules-git`. nvidia-dkms rebuilds automatically via
    pacman's DKMS hook when the kernel installs.
 6. **Runs `grub-mkconfig`** so the new kernel shows up at the GRUB menu.
@@ -118,9 +118,8 @@ from GRUB's "Advanced options" submenu.
 (it's a tuning daemon; you should know it's running). To turn it on:
 
 ```sh
-sudo ln -s /etc/runit/sv/ananicy-cpp /etc/runit/runsvdir/default/
-# Within ~5s runsvdir picks it up:
-sudo sv status ananicy-cpp
+sudo dinitctl enable ananicy-cpp
+sudo dinitctl status ananicy-cpp
 ```
 
 The CachyOS rules ship at `/etc/ananicy.d/00-default/` (or similar) and
@@ -173,42 +172,49 @@ ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="1", ATTR{queue
 eudev picks it up at next boot, or `sudo udevadm control --reload &&
 sudo udevadm trigger`.
 
-### CPU governor as a runit service
+### CPU governor as a dinit service
 
 A tiny one-shot service that sets `performance` (or `schedutil`) once at
-boot. Make `/etc/runit/sv/cpu-governor/run`:
+boot. Drop the helper script and a declarative dinit service.
+
+`/usr/local/sbin/set-cpu-governor.sh`:
 
 ```sh
 #!/bin/sh
-# /etc/runit/sv/cpu-governor/run
-exec 2>&1
 # Use "schedutil" if you want CPU to scale down when idle.
 GOV=performance
 for f in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
   printf '%s\n' "$GOV" > "$f"
 done
-# Sleep forever so runit considers the service "up" (one-shot pattern).
-exec sleep infinity
 ```
 
-`chmod +x` the run script, then symlink into the runlevel:
+`/etc/dinit.d/cpu-governor`:
+
+```ini
+type    = scripted
+command = /usr/local/sbin/set-cpu-governor.sh
+# `scripted` services are considered "up" once the command exits 0,
+# which is exactly the one-shot semantics we want.
+```
+
+Enable it:
 
 ```sh
-sudo chmod +x /etc/runit/sv/cpu-governor/run
-sudo ln -s /etc/runit/sv/cpu-governor /etc/runit/runsvdir/default/
+sudo chmod +x /usr/local/sbin/set-cpu-governor.sh
+sudo dinitctl enable cpu-governor
 ```
 
 For a desktop with reliable cooling, `performance` is the right call.
 For lower idle wattage, `schedutil`.
 
-### zram via Artix's zram-runit
+### zram via Artix's zram-dinit
 
 If you want zram (compressed swap in RAM — almost free perf for builds
 or running with lots of background tabs):
 
 ```sh
-sudo pacman -S zram-runit
-sudo ln -s /etc/runit/sv/zram /etc/runit/runsvdir/default/
+sudo pacman -S zram-dinit
+sudo dinitctl enable zram
 ```
 
 Configure size in `/etc/conf.d/zram` (the Artix package ships a
@@ -217,7 +223,7 @@ choice on a 64 GB box → 32 GB of swap that's actually fast.
 
 If you set up zram, `vm.swappiness = 100` makes sense; otherwise lower it.
 
-### scx-scheds runit service (optional)
+### scx-scheds dinit service (optional)
 
 `scx-scheds` provides userspace sched-ext schedulers. `linux-cachyos`
 already has BORE + sched-ext baked in by default — running an `scx_*`
@@ -228,27 +234,27 @@ If you do want it:
 
 ```sh
 sudo pacman -S scx-scheds      # add to pkgs/cachyos.txt and re-bootstrap
-sudo mkdir -p /etc/runit/sv/scx
 ```
 
-`/etc/runit/sv/scx/run`:
+`/etc/dinit.d/scx`:
 
-```sh
-#!/bin/sh
-# /etc/runit/sv/scx/run
-exec 2>&1
+```ini
 # Pick one: scx_lavd (latency-focused), scx_rusty (general), scx_bpfland (gaming).
-exec scx_lavd
+type            = process
+command         = /usr/bin/scx_lavd
+restart         = true
+smooth-recovery = true
 ```
+
+Enable and start:
 
 ```sh
-sudo chmod +x /etc/runit/sv/scx/run
-sudo ln -s /etc/runit/sv/scx /etc/runit/runsvdir/default/
+sudo dinitctl enable scx
 ```
 
-Stopping reverts to the kernel default scheduler. To switch schedulers,
-edit the `run` script and `sudo sv restart scx`. Don't run multiple at
-once.
+Stopping (`sudo dinitctl stop scx`) reverts to the kernel default
+scheduler. To switch schedulers, edit the `command =` line and
+`sudo dinitctl restart scx`. Don't run multiple at once.
 
 ## Maintenance gotchas
 
@@ -295,7 +301,7 @@ packages will be replaced. Snapshot before doing this too.
 
 - CachyOS repo install (official): <https://wiki.cachyos.org/cachyos_repositories/how_to_add_cachyos_repo/>
 - CachyOS sysctl tunings (reference, do NOT install as a package): <https://github.com/CachyOS/CachyOS-Settings>
-- Artix ananicy-cpp-runit: <https://gitea.artixlinux.org/packagesA/ananicy-cpp-runit>
+- Artix ananicy-cpp-dinit: <https://gitea.artixlinux.org/packagesA/ananicy-cpp-dinit>
 - BORE scheduler: <https://github.com/firelzrd/bore-scheduler>
 - sched-ext + scx-scheds: <https://github.com/sched-ext/scx>
 - Arch wiki — Improving performance: <https://wiki.archlinux.org/title/Improving_performance>

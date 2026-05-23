@@ -1,6 +1,6 @@
 # 01 — Artix Linux install (dual-boot on a separate disk)
 
-Goal: clean Artix (runit) install on **disk 2**, with **disk 1 (Bazzite)
+Goal: clean Artix (dinit) install on **disk 2**, with **disk 1 (Bazzite)
 physically disconnected during install**. Both OSes get their own ESP and
 their own bootloader. The firmware boot menu picks between them. Nothing the
 Artix installer does can ever touch Bazzite.
@@ -25,8 +25,8 @@ Artix installer does can ever touch Bazzite.
    or M.2). Yes, really. NVMe: unscrew it. SATA: pull the data cable.
 2. Confirm disk 1 is gone in BIOS (`Setup → Storage`). Only disk 2 and any
    removable media should appear.
-3. USB stick flashed with the **Artix runit base ISO**
-   (`artix-base-runit-*.iso`) from <https://artixlinux.org/download.php>. The
+3. USB stick flashed with the **Artix dinit base ISO**
+   (`artix-base-dinit-*.iso`) from <https://artixlinux.org/download.php>. The
    "base" variant ships only a TTY; we install the desktop ourselves via the
    bootstrap script — that's the whole point of this repo.
 
@@ -57,8 +57,10 @@ Artix installer does can ever touch Bazzite.
    mount -o noatime,compress=zstd,subvol=@snapshots  /dev/nvme1n1p2 /mnt/.snapshots
    mount /dev/nvme1n1p1 /mnt/boot
    ```
-6. `basestrap /mnt base base-devel runit elogind-runit linux linux-firmware nano`
-   (`basestrap` is Artix's `pacstrap` equivalent.)
+6. `basestrap /mnt base base-devel dinit dinit-rc elogind-dinit linux linux-firmware nano`
+   (`basestrap` is Artix's `pacstrap` equivalent. `dinit` is the daemon;
+   `dinit-rc` is the boot scripts metapackage; `elogind-dinit` pulls
+   `elogind` plus its dinit service file.)
 7. `fstabgen -U /mnt >> /mnt/etc/fstab`
 8. `artix-chroot /mnt`
 9. Timezone, locale, hostname, root password, **make a normal user** and add

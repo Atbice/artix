@@ -81,7 +81,8 @@ snapshot, investigate, retry.
   pacman -Qqm > pkgs/installed-aur.txt
   ```
   (`-Qqe` is explicitly installed; `-Qqm` is "foreign", i.e. AUR.)
-- `services.txt` — runit services you enabled.
+- `services.txt` — dinit services you enabled (`dinitctl list` is the
+  live truth; this file is the seed list bootstrap.sh re-applies).
 - `etc/` — your `/etc/modprobe.d`, `/etc/mkinitcpio.conf.d`, `/etc/greetd`.
 - Dotfiles live in a **separate chezmoi repo** (`chezmoi init --apply <repo>`),
   not here — keep provisioning and dotfiles decoupled.

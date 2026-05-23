@@ -97,20 +97,38 @@ NVIDIA), and `--cmd niri-session` is what becomes the user's session after
 they auth. For autologin, swap the `[default_session]` block for the
 `[initial_session]` block (see the comments in the file).
 
-## runit services (Artix layout)
+## dinit services (Artix layout)
 
-Artix runit watches `/etc/runit/runsvdir/default/` — **not** `/var/service`.
-`bootstrap.sh` symlinks the right things in:
+Service files live in `/etc/dinit.d/<name>` (or `/usr/lib/dinit.d/<name>`
+when shipped by a package). Each is a declarative `key = value` file —
+no run scripts. Enabling a service means symlinking it under
+`/etc/dinit.d/boot.d/` so the `boot` target pulls it in; `dinitctl
+enable` does that and brings the service up immediately.
+
+`bootstrap.sh` enables these:
 
 ```sh
-sudo ln -s /etc/runit/sv/dbus           /etc/runit/runsvdir/default/  # FIRST
-sudo ln -s /etc/runit/sv/NetworkManager /etc/runit/runsvdir/default/
-sudo ln -s /etc/runit/sv/elogind        /etc/runit/runsvdir/default/  # if pkg ships it
-sudo ln -s /etc/runit/sv/greetd         /etc/runit/runsvdir/default/  # LAST
+sudo dinitctl enable dbus
+sudo dinitctl enable NetworkManager
+sudo dinitctl enable elogind         # if pkg ships a service file
+sudo dinitctl enable greetd
 ```
 
-`runit-rc` polls the dir every ~5s, so symlinking is enough to start a
-service. To stop one without removing the symlink: `sudo sv down <name>`.
+Order doesn't matter at enable-time — dinit reads `depends-on =` /
+`waits-for =` lines in the service files themselves and starts services
+in the right order (greetd waits for dbus + elogind, NetworkManager
+waits for dbus, etc). The Artix `*-dinit` subpackages declare these
+deps already.
+
+Quick reference:
+
+```sh
+sudo dinitctl list                   # show all loaded services + status
+sudo dinitctl status <name>          # one service
+sudo dinitctl start <name>           # bring up now
+sudo dinitctl stop <name>            # bring down now (stays enabled)
+sudo dinitctl disable <name>         # remove from boot
+```
 
 ## VRR + gaming on niri
 
@@ -141,5 +159,6 @@ vkcube                                                # 3090 renders
 - niri wiki: <https://github.com/YaLTeR/niri/wiki>
 - Arch wiki — NVIDIA: <https://wiki.archlinux.org/title/NVIDIA>
 - Arch wiki — niri: <https://wiki.archlinux.org/title/Niri>
-- Artix wiki — runit: <https://wiki.artixlinux.org/Main/Runit>
+- Artix wiki — dinit: <https://wiki.artixlinux.org/Main/Dinit>
+- dinit upstream + docs: <https://github.com/davmac314/dinit>
 - greetd: <https://man.sr.ht/~kennylevinsen/greetd/>

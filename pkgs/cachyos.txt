@@ -1,7 +1,7 @@
 # CachyOS layer — installed only when `bootstrap.sh --cachyos` is used.
 # See docs/06-cachyos-layer.md for the full story (and the parts NOT
-# automated by bootstrap.sh: hand-ported sysctl drops, scx-scheds runit
-# service, hand-picked udev I/O scheduler rules).
+# automated by bootstrap.sh: hand-ported sysctl drops, scx-scheds dinit
+# service file, hand-picked udev I/O scheduler rules).
 #
 # Prereq: bootstrap.sh's --cachyos path has already added the CachyOS
 # keyring + v3 mirrorlists and re-run `pacman -Syyu`, so the x86-64-v3
@@ -26,13 +26,13 @@ linux-cachyos-headers       # MUST install with the kernel — nvidia-dkms uses 
 # linux-lts-headers
 
 # --- userspace tuning -------------------------------------------------------
-# ananicy-cpp: per-app nice / scheduling-class daemon. The -runit variant
+# ananicy-cpp: per-app nice / scheduling-class daemon. The -dinit variant
 # is from Artix's [system] repo; CachyOS supplies the rules file below.
-ananicy-cpp-runit
+ananicy-cpp-dinit
 cachyos-ananicy-rules-git
 
 # sched-ext userspace schedulers (scx_lavd / scx_rusty / scx_bpfland / ...).
 # NOT installed by default: the package ships only systemd units, so you'd
-# need to write /etc/runit/sv/scx/run yourself. docs/06 has a template.
-# Uncomment AFTER you've written that sv:
+# need to write /etc/dinit.d/scx yourself. docs/06 has a template.
+# Uncomment AFTER you've written that service file:
 # scx-scheds

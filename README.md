@@ -1,25 +1,25 @@
 # Artix Linux — lean gaming box (niri + Noctalia, native Steam + Faugus)
 
-A **minimal, clean** Artix Linux (runit) install whose only job is: boot into
+A **minimal, clean** Artix Linux (dinit) install whose only job is: boot into
 **niri** (scrollable-tiling Wayland), present a **Noctalia** desktop shell,
 and run **Steam + Lutris + Faugus** with the **RTX 3090** driver correct.
 Dual-booted on a separate disk; Bazzite stays untouched.
 
 > Pivoted from **Void Linux + KDE Plasma** on 2026-05-22. Void was the right
-> philosophy (lean, runit, in control) but the niri + Noctalia stack needs
-> **Quickshell**, which is not in `void-packages` — that's the exact
-> "unofficial single-maintainer repo or fragile source build" trap we
-> already rejected for COSMIC. Artix (also runit) has access to the AUR,
-> which packages all of niri, Quickshell, Noctalia, and Faugus with active
-> maintainers. Same init philosophy, dramatically better packaging coverage
-> for this stack.
+> philosophy (lean, supervised init, in control) but the niri + Noctalia
+> stack needs **Quickshell**, which is not in `void-packages` — that's the
+> exact "unofficial single-maintainer repo or fragile source build" trap we
+> already rejected for COSMIC. Artix (same non-systemd ethos, with a choice
+> of inits) has access to the AUR, which packages all of niri, Quickshell,
+> Noctalia, and Faugus with active maintainers. Same init philosophy,
+> dramatically better packaging coverage for this stack.
 
 ## Locked decisions (this scope)
 
 | Decision | Choice | Why |
 |---|---|---|
-| OS | **Artix Linux** | Runit available (same appeal as Void); AUR available (Void's missing piece). |
-| Init | **runit** | Same model that drew us to Void. Boot is fast, supervision is dirt-simple, upstream is dead-stable (a feature on a daily-driver box). |
+| OS | **Artix Linux** | Non-systemd with a choice of inits (same appeal as Void); AUR available (Void's missing piece). |
+| Init | **dinit** | Same supervised-init philosophy as runit, but with three things we want: a real dependency graph (no dbus-first/greetd-last hacks), declarative `key = value` service files (no run scripts to read), and an actively-developed upstream. Artix ships first-party `*-dinit` subpackages for every service we use. |
 | Compositor | **niri** (Wayland, scrollable-tiling) | Modern Rust/smithay compositor with explicit NVIDIA support. VRR works on the proprietary driver in 2026. |
 | Shell | **Noctalia** (via Quickshell) | QML-based desktop shell. Status bar + launcher + notifications + control center in one. AUR-packaged. |
 | Display manager | **greetd + tuigreet** | TUI greeter on tty1 — no Qt/GTK at the greeter stage, no Wayland-NVIDIA greeter quirks, instant. |
@@ -48,23 +48,26 @@ Dual-booted on a separate disk; Bazzite stays untouched.
 - **Stay on Void Linux** (evaluated 2026-05-22): rejected — Quickshell is
   not in `void-packages`, source-builds on a rolling distro are fragile,
   unofficial single-maintainer xbps repos are the COSMIC-trap. Artix gives
-  us the same init story (runit) plus AUR coverage of this stack.
+  us the same non-systemd philosophy plus AUR coverage of this stack.
 - **COSMIC desktop** (evaluated 2026-05): still deferred. Was deferred under
   Void for the same packaging reason; under Artix, niri + Noctalia now
   scratch the "modern non-KDE Wayland" itch, so COSMIC is doubly unneeded.
   Revisit only when its NVIDIA + gaming story is solid (Epoch 2/3, ~2027).
-- **OpenRC / dinit / s6** (other Artix init systems): runit picked. OpenRC
-  is the biggest ecosystem but slowest boot; dinit is fast/modern but
-  smaller community; s6 is the purist option with the steepest learning
-  curve. runit matches what we already wanted.
+- **runit / OpenRC / s6** (other Artix init systems): dinit picked. runit
+  is dead-stable but unordered (every service starts in parallel — the
+  dbus-first/greetd-last constraints had to be enforced by hand) and its
+  service files are run scripts, not declarative; OpenRC is the biggest
+  ecosystem but slowest boot and shell-script-heavy; s6 is the purist
+  option with the steepest learning curve. dinit lands on the right side
+  of all three axes for this box.
 
 ## Repo layout
 
 ```
 README.md                       this file
 docs/
-  01-install-artix.md           Artix runit install, dual-boot, two ESPs, Btrfs
-  02-nvidia-niri.md             RTX 3090 + niri + greetd + runit services
+  01-install-artix.md           Artix dinit install, dual-boot, two ESPs, Btrfs
+  02-nvidia-niri.md             RTX 3090 + niri + greetd + dinit services
   03-shell-noctalia.md          Quickshell + Noctalia from AUR, autostart, fonts/portals
   04-gaming.md                  native Steam + Lutris + Faugus (AUR), gamemode, mangohud
   05-maintenance.md             rolling-release survival (pacman + paru + snapper)
@@ -72,12 +75,12 @@ docs/
 pkgs/
   pacman.txt                    official-repo packages (base+desktop+nvidia+gaming+fonts)
   aur.txt                       quickshell + noctalia-shell + faugus-launcher
-  cachyos.txt                   OPTIONAL: linux-cachyos + ananicy-cpp-runit + cachyos rules
+  cachyos.txt                   OPTIONAL: linux-cachyos + ananicy-cpp-dinit + cachyos rules
 etc/
   modprobe.d/nvidia.conf        KMS + suspend memory preservation
   mkinitcpio.conf.d/nvidia.conf nvidia modules baked into initramfs
   greetd/config.toml            tuigreet → niri-session on tty1
-services.txt                    runit services to symlink into /etc/runit/runsvdir/default
+services.txt                    dinit services to enable via `dinitctl enable`
 bootstrap.sh                    idempotent provisioner (multilib + pacman + paru + AUR + services)
 ```
 
@@ -90,7 +93,7 @@ bootstrap.sh                    idempotent provisioner (multilib + pacman + paru
    ```sh
    sudo pacman -S git
    git clone <this repo> ~/void && cd ~/void
-   ./bootstrap.sh   # multilib → pacman pkgs → nvidia config → mkinitcpio → runit services → paru → AUR
+   ./bootstrap.sh   # multilib → pacman pkgs → nvidia config → mkinitcpio → dinit services → paru → AUR
    sudo reboot
    ```
    Flags: `--no-aur` (skip paru + AUR — Noctalia not installed) ·
