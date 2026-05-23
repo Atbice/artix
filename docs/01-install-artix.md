@@ -71,49 +71,56 @@ fallback.
 2. `loadkeys <your-layout>` (e.g. `loadkeys no-latin1` for Norwegian).
 3. Network: `connmanctl` or `nmtui` (NetworkManager is on the ISO).
 4. Partition **disk 2 only** — verify with `lsblk` first, target should look
-   like `/dev/nvme1n1` or similar. Suggested layout (UEFI):
+   like `/dev/nvme1n1` or similar. Layout (UEFI):
    ```
-   /dev/nvme1n1p1   512M   EFI System (FAT32)     → mounted at /boot
-   /dev/nvme1n1p2   *      Linux filesystem (Btrfs) → mounted at /
+   /dev/nvme1n1p1   512M   EFI System (FAT32)    → mounted at /boot
+   /dev/nvme1n1p2   *      Linux filesystem (ext4) → mounted at /
    ```
-   No swap partition; a swapfile on Btrfs is fine if you ever need one.
+   No swap partition; we use `zramen` (compressed swap in RAM) instead —
+   set up by install.sh / basestrap below. No `/home` split — single root.
+   See `docs/adr/0001-ext4-no-snapshots.md` for why ext4 over Btrfs.
 5. Format + mount:
    ```sh
    mkfs.fat -F32 /dev/nvme1n1p1
-   mkfs.btrfs -L artix /dev/nvme1n1p2
-   mount /dev/nvme1n1p2 /mnt
-   btrfs subvolume create /mnt/@
-   btrfs subvolume create /mnt/@home
-   btrfs subvolume create /mnt/@snapshots
-   umount /mnt
-   mount -o noatime,compress=zstd,subvol=@           /dev/nvme1n1p2 /mnt
-   mkdir -p /mnt/{boot,home,.snapshots}
-   mount -o noatime,compress=zstd,subvol=@home       /dev/nvme1n1p2 /mnt/home
-   mount -o noatime,compress=zstd,subvol=@snapshots  /dev/nvme1n1p2 /mnt/.snapshots
+   mkfs.ext4 -L artix /dev/nvme1n1p2
+   mount -o noatime /dev/nvme1n1p2 /mnt
+   mkdir -p /mnt/boot
    mount /dev/nvme1n1p1 /mnt/boot
    ```
-6. `basestrap /mnt base base-devel dinit dinit-rc elogind-dinit linux linux-firmware nano`
+6. `basestrap /mnt base base-devel dinit dinit-rc elogind-dinit linux linux-lts linux-firmware amd-ucode networkmanager networkmanager-dinit zramen zramen-dinit grub efibootmgr git nano`
    (`basestrap` is Artix's `pacstrap` equivalent. `dinit` is the daemon;
    `dinit-rc` is the boot scripts metapackage; `elogind-dinit` pulls
-   `elogind` plus its dinit service file.)
+   `elogind` + its dinit service file; `amd-ucode` is loaded by GRUB at
+   early boot for the 5900X; `linux-lts` is the safety-net kernel.)
 7. `fstabgen -U /mnt >> /mnt/etc/fstab`
 8. `artix-chroot /mnt`
 9. Timezone, locale, hostname, root password, **make a normal user** and add
    to `wheel`:
    ```sh
    ln -sf /usr/share/zoneinfo/Europe/Oslo /etc/localtime
+   hwclock --systohc
    echo en_US.UTF-8 UTF-8 >> /etc/locale.gen && locale-gen
    echo LANG=en_US.UTF-8 > /etc/locale.conf
+   echo KEYMAP=no-latin1 > /etc/vconsole.conf
    echo gamingbox > /etc/hostname        # whatever you like
+   cat > /etc/hosts <<EOF
+   127.0.0.1   localhost
+   ::1         localhost
+   127.0.1.1   gamingbox.localdomain gamingbox
+   EOF
    passwd
    useradd -m -G wheel -s /bin/bash bice  # change `bice` to your username
    passwd bice
    # uncomment "%wheel ALL=(ALL:ALL) ALL" in /etc/sudoers via `visudo`
+   # Enable services for first boot (offline = create the boot.d symlink only):
+   dinitctl --offline enable dbus
+   dinitctl --offline enable elogind
+   dinitctl --offline enable NetworkManager
+   dinitctl --offline enable zramen
    ```
    (You'll switch to fish later — bootstrap doesn't change the login shell.)
-10. Bootloader on **this disk only**:
+10. Bootloader on **this disk only** (already installed via basestrap):
     ```sh
-    pacman -S grub efibootmgr
     grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Artix --removable
     grub-mkconfig -o /boot/grub/grub.cfg
     ```

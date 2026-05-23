@@ -43,9 +43,11 @@ Costs:
 - One extra check per `pacman -Syu`: did any rebuild add a `systemd` dep?
   If yes (rare) you skip that package and pin to the Artix/Arch version.
 - The CachyOS kernel is one more thing to update + verify with DKMS.
-  `linux-lts` as a fallback boot entry is highly recommended.
-- Rolling-on-rolling means doubled breakage surface. Snapshot before
-  every `-Syu`.
+  `linux-lts` is your fallback boot entry (already installed by
+  install.sh — pick it from GRUB if linux-cachyos boots dirty).
+- Rolling-on-rolling means doubled breakage surface. Read the Arch +
+  Artix + Cachy news before every `-Syu` (you don't have a snapshot
+  rollback — see docs/adr/0001).
 
 If you compile a lot of Rust or stream + game simultaneously, this layer
 pays off. If you mostly play one game at a time, the GPU is the
@@ -55,10 +57,10 @@ bottleneck and the perf delta is hard to measure.
 
 - Base `./bootstrap.sh` has run successfully and you've rebooted into a
   working niri session at least once.
-- A fresh Btrfs snapshot:
-  ```sh
-  sudo btrfs subvolume snapshot -r / /.snapshots/$(date +%F-%H%M)-pre-cachyos
-  ```
+- `linux-lts` is installed (install.sh does this by default) so you
+  have a fallback boot entry if the Cachy kernel breaks nvidia-dkms on
+  first boot. With ext4 + no Btrfs snapshots, this is your rollback
+  story.
 - ~3–4 GB free disk: the v3 rebuilds redownload almost the entire
   installed package set.
 
@@ -226,19 +228,16 @@ For lower idle wattage, `schedutil`.
 
 ### zram via Artix's zramen-dinit
 
-If you want zram (compressed swap in RAM — almost free perf for builds
-or running with lots of background tabs):
+Already installed and enabled by install.sh (see docs/01) — this section
+is just for tuning. Configure size in `/etc/conf.d/zramen` (the package
+ships a commented sample). On a 32 GB box, ~8 GB of zstd-compressed
+zram is a sensible default — it expands to ~16–20 GB of effective swap
+under typical workloads.
 
-```sh
-sudo pacman -S zramen zramen-dinit
-sudo dinitctl enable zramen
-```
-
-Configure size in `/etc/conf.d/zramen` (the Artix package ships a
-commented sample). Half of RAM as `zstd`-compressed zram is the common
-choice on a 64 GB box → 32 GB of swap that's actually fast.
-
-If you set up zram, `vm.swappiness = 100` makes sense; otherwise lower it.
+With zram active, `vm.swappiness = 100` is the right value (above) —
+the kernel should prefer cheap zram over disk swap (which doesn't
+exist on this box anyway). If you ever add a real swapfile,
+re-evaluate.
 
 ### scx-scheds dinit service (optional)
 
@@ -312,7 +311,8 @@ sudo reboot
 ```
 
 Step 3 is the slow one — `-uu` allows downgrades, and several hundred
-packages will be replaced. Snapshot before doing this too.
+packages will be replaced. If it fails midway, boot linux-lts from
+GRUB and triage; worst case, reinstall (docs/01).
 
 ## Sources
 

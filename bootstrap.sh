@@ -261,9 +261,11 @@ CachyOS layer was installed. Additional steps:
         - sysctl drops in /etc/sysctl.d/
         - I/O scheduler udev rule in /etc/udev/rules.d/
         - CPU governor dinit service
-        - zram via Artix's zramen-dinit (if you want it)
         - scx-scheds + a dinit service file to launch a chosen scheduler
-  C4. Snapshot before the next `pacman -Syu`. Rolling-rolling = doubled
-      surface area for breakage; the Btrfs snapshot is your rollback.
+        (zramen is already installed + enabled by install.sh)
+  C4. Read Arch + Artix + Cachy news before the next `pacman -Syu`.
+      Rolling-on-rolling = doubled breakage surface; with ext4 there's
+      no snapshot rollback (docs/adr/0001) — your fallbacks are the
+      linux-lts GRUB entry and Bazzite on disk 1.
 EOF
 fi

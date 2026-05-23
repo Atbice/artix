@@ -58,7 +58,8 @@ pavucontrol             # PipeWire/Pulse mixer GUI
 nautilus                # GTK file manager — works under niri, no KDE deps
 
 # --- nvidia (RTX 3090, Ampere → current branch, DKMS) -----------------------
-linux-headers           # required for DKMS
+linux-headers           # required for DKMS (mainline kernel)
+linux-lts-headers       # so nvidia-dkms also builds for linux-lts (fallback kernel)
 nvidia-dkms
 nvidia-utils
 lib32-nvidia-utils      # MULTILIB — mandatory for Steam/Proton games

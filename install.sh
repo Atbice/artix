@@ -4,8 +4,9 @@
 # Runs from the Artix dinit base ISO (artix-base-dinit-*.iso). Mirrors
 # the runbook in docs/01-install-artix.md but as a single declarative
 # pass: you pass the few real choices as flags, the rest are this
-# repo's locked decisions (dinit, Btrfs + 3 subvolumes, two ESPs, GRUB
-# --removable, dual-boot-safe).
+# repo's locked decisions (dinit, ext4 single root, two ESPs, GRUB
+# --removable, dual-boot-safe). Rollback is "boot Bazzite, reinstall
+# Artix" — there's no snapshot tooling. See docs/adr/0001 for why.
 #
 # Usage:
 #   ./install.sh --disk /dev/nvme1n1 [options]
@@ -93,9 +94,13 @@ ROOTPART="${PART}2"
 # --- plan + confirmation ----------------------------------------------------
 say "Install plan (about to WIPE $DISK)"
 cat <<EOF
-  Target disk      : $DISK   (partitions: $ESP EFI, $ROOTPART Btrfs)
-  Subvolumes       : @ /, @home /home, @snapshots /.snapshots
+  Target disk      : $DISK   (partitions: $ESP EFI, $ROOTPART ext4 /)
+  Filesystem       : ext4 (single root, no /home split, no snapshot tooling)
   Init             : dinit (dinit + dinit-rc + elogind-dinit)
+  Kernels          : linux (mainline) + linux-lts (boot fallback)
+  Microcode        : amd-ucode (auto-loaded by GRUB at early boot)
+  Networking       : NetworkManager + networkmanager-dinit (enabled in chroot)
+  Swap             : zramen (compressed swap in RAM, enabled in chroot)
   Bootloader       : GRUB --removable (writes /EFI/BOOT/BOOTX64.EFI on ${DISK}'s ESP only — does NOT touch NVRAM)
   Hostname         : $HOSTNAME_
   Username         : $USERNAME_  (group: wheel, shell: /bin/bash)
@@ -132,7 +137,7 @@ say "Setting live console keymap"
 run "loadkeys $KEYMAP"
 
 # --- partition -------------------------------------------------------------
-say "Partitioning $DISK (512M EFI + remainder Btrfs)"
+say "Partitioning $DISK (512M EFI + remainder ext4)"
 run "wipefs -af $DISK"
 run "sgdisk --zap-all $DISK"
 run "sgdisk -n 1:0:+512M -t 1:ef00 -c 1:EFI         $DISK"
@@ -143,31 +148,29 @@ run "partprobe $DISK"
 # --- format ----------------------------------------------------------------
 say "Formatting"
 run "mkfs.fat -F32 -n ARTIX-EFI $ESP"
-run "mkfs.btrfs -f -L artix $ROOTPART"
-
-# --- subvolumes ------------------------------------------------------------
-say "Creating Btrfs subvolumes (@, @home, @snapshots)"
-run "mount $ROOTPART /mnt"
-run "btrfs subvolume create /mnt/@"
-run "btrfs subvolume create /mnt/@home"
-run "btrfs subvolume create /mnt/@snapshots"
-run "umount /mnt"
+run "mkfs.ext4 -F -L artix $ROOTPART"
 
 # --- mount the install tree ------------------------------------------------
-MOUNT_OPTS="noatime,compress=zstd"
+# Single root + ESP. noatime saves SSD write cycles (universal best practice
+# on NVMe); we deliberately don't pass `discard` — continuous TRIM can cause
+# game frame-time hitching. Use a weekly fstrim job instead if wanted.
 say "Mounting the install tree"
-run "mount -o $MOUNT_OPTS,subvol=@           $ROOTPART /mnt"
-run "mkdir -p /mnt/boot /mnt/home /mnt/.snapshots"
-run "mount -o $MOUNT_OPTS,subvol=@home       $ROOTPART /mnt/home"
-run "mount -o $MOUNT_OPTS,subvol=@snapshots  $ROOTPART /mnt/.snapshots"
+run "mount -o noatime $ROOTPART /mnt"
+run "mkdir -p /mnt/boot"
 run "mount $ESP /mnt/boot"
 
 # --- basestrap -------------------------------------------------------------
-# Bare minimum to boot Artix on dinit + GRUB + git (so bootstrap.sh can be
-# cloned in on first boot). Desktop packages are bootstrap.sh's job.
+# Enough to boot Artix into a working TTY with network + zram + a fallback
+# kernel, so bootstrap.sh can be cloned in on first boot. Desktop packages
+# (niri, Noctalia, Steam, NVIDIA) are bootstrap.sh's job.
 say "basestrap (Artix's pacstrap)"
-run "basestrap /mnt base base-devel dinit dinit-rc elogind-dinit \
-                 linux linux-firmware \
+run "basestrap /mnt \
+                 base base-devel \
+                 dinit dinit-rc elogind-dinit \
+                 linux linux-lts linux-firmware \
+                 amd-ucode \
+                 networkmanager networkmanager-dinit \
+                 zramen zramen-dinit \
                  grub efibootmgr \
                  git nano"
 
@@ -178,19 +181,21 @@ run "fstabgen -U /mnt >> /mnt/etc/fstab"
 # --- chroot config ---------------------------------------------------------
 # Heredoc on stdin to artix-chroot. Avoids writing passwords to a script
 # file on the new disk. Variables are expanded by THIS shell before the
-# heredoc reaches the chroot, so they're already substituted in.
-say "Configuring inside artix-chroot (timezone, locale, hostname, users, sudoers, GRUB)"
+# heredoc reaches the chroot, so they're already substituted in. Passwords
+# go in via env so they never appear on argv / in /proc/*/cmdline.
+say "Configuring inside artix-chroot (timezone, locale, hosts, hostname, users, sudoers, pacman, services, GRUB)"
 if [ "$DRY" = 1 ]; then
   cat <<EOF
   [dry-run] artix-chroot /mnt /bin/bash <<'CHROOT_END'
   (timezone $TIMEZONE, locale $LOCALE, keymap $KEYMAP, hostname $HOSTNAME_,
-   useradd -m -G wheel -s /bin/bash $USERNAME_, sudoers wheel uncomment,
+   /etc/hosts entries, useradd -m -G wheel -s /bin/bash $USERNAME_,
+   sudoers wheel uncomment, pacman.conf ParallelDownloads+Color+ILoveCandy,
+   dinitctl --offline enable dbus elogind NetworkManager zramen,
    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Artix --removable,
    grub-mkconfig -o /boot/grub/grub.cfg)
   CHROOT_END
 EOF
 else
-  # Export passwords to the chroot via env (NOT argv → not in /proc/*/cmdline).
   ROOT_PW="$ROOT_PW" USER_PW="$USER_PW" \
   artix-chroot /mnt /bin/bash <<CHROOT_END
 set -eu
@@ -199,7 +204,7 @@ set -eu
 ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime
 hwclock --systohc
 
-# locale — uncomment the line if present, append it if not
+# locale — uncomment if present, append if not
 sed -i 's/^#\s*$LOCALE UTF-8/$LOCALE UTF-8/' /etc/locale.gen
 grep -q '^$LOCALE UTF-8' /etc/locale.gen || echo '$LOCALE UTF-8' >> /etc/locale.gen
 locale-gen
@@ -208,8 +213,13 @@ echo 'LANG=$LOCALE' > /etc/locale.conf
 # console keymap
 echo 'KEYMAP=$KEYMAP' > /etc/vconsole.conf
 
-# hostname
+# hostname + /etc/hosts (sudo wants the hostname to resolve)
 echo '$HOSTNAME_' > /etc/hostname
+cat > /etc/hosts <<HOSTS
+127.0.0.1   localhost
+::1         localhost
+127.0.1.1   $HOSTNAME_.localdomain $HOSTNAME_
+HOSTS
 
 # root password
 echo "root:\$ROOT_PW" | chpasswd
@@ -221,7 +231,20 @@ echo "$USERNAME_:\$USER_PW" | chpasswd
 # sudoers — uncomment %wheel
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL\$/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
-# bootloader — only on THIS disk's ESP, no NVRAM entry (--removable)
+# pacman ergonomics — parallel downloads, color, the candy progress bar
+sed -i 's/^#\s*Color/Color/'                          /etc/pacman.conf
+sed -i 's/^#\s*ParallelDownloads.*/ParallelDownloads = 5/' /etc/pacman.conf
+grep -q '^ILoveCandy' /etc/pacman.conf || sed -i '/^Color/a ILoveCandy' /etc/pacman.conf
+
+# enable services for first boot. dinit isn't PID 1 in this chroot, so we
+# use --offline to just create the boot.d symlink (no attempt to start).
+dinitctl --offline enable dbus
+dinitctl --offline enable elogind
+dinitctl --offline enable NetworkManager
+dinitctl --offline enable zramen
+
+# bootloader — only on THIS disk's ESP, no NVRAM entry (--removable).
+# grub-mkconfig auto-detects amd-ucode.img and both kernels.
 grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Artix --removable
 grub-mkconfig -o /boot/grub/grub.cfg
 CHROOT_END

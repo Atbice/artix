@@ -21,18 +21,26 @@ paru -Sua                  # AUR upgrades — review PKGBUILDs when prompted
   use `paru --hold <pkg>` for AUR.
 - **Never** run `paru -Sua` as root — `makepkg` refuses by design.
 
-## Snapshots = your rollback (Btrfs root, chosen at install)
+## Rollback story (without filesystem snapshots)
 
-This is why `docs/01` picks Btrfs. Snapshot before any non-trivial update:
+ext4 root, no snapshot tooling — see
+[`docs/adr/0001-ext4-no-snapshots.md`](./adr/0001-ext4-no-snapshots.md)
+for the trade. That makes rollback two layers, in this order:
 
-```sh
-sudo btrfs subvolume snapshot -r / /.snapshots/$(date +%F-%H%M)
-```
+1. **`linux-lts` fallback boot entry.** If a kernel update breaks nvidia
+   or the boot path, pick `Advanced options for Artix → Artix Linux,
+   with Linux linux-lts` from the GRUB menu. You're back in.
+   `linux-lts-headers` is in `pkgs/pacman.txt` so nvidia-dkms also
+   builds against it.
+2. **Bazzite on disk 1.** If Artix dies completely, hold the firmware
+   boot menu key (F11/F12/Esc) and pick Bazzite. You still have a
+   working desktop while you triage. Worst case: re-run `install.sh` +
+   `bootstrap.sh` on the new disk (`/home` is gone too — no separate
+   partition).
 
-Consider `snapper` (in extra) for automation + GRUB boot-into-snapshot.
-`snapper-rollback` boots into a chosen snapshot; `snap-pac` hooks pacman to
-auto-snapshot before/after each transaction. A failed update → boot a
-snapshot, investigate, retry.
+The "fresh install in 30 minutes" story is real because both scripts
+are idempotent and the package set is in git. Treat that as the
+disaster-recovery plan and don't bolt a snapshot tool on top.
 
 ## NVIDIA + rolling kernel
 
@@ -67,11 +75,14 @@ snapshot, investigate, retry.
   your root + ESP, `artix-chroot /mnt`, fix packages, regen initramfs
   (`mkinitcpio -P`), reinstall GRUB to disk 2's ESP. Same workflow as the
   install.
-- **Old kernel entry in GRUB** — first line of defense for DKMS failures.
-  `linux-lts` ensures you always have one.
-- **Btrfs snapshot** — first line of defense for everything else.
-- **Bazzite is independent on disk 1** — worst case you boot Bazzite and
-  fix Artix over SSH or via chroot from there.
+- **`linux-lts` boot entry in GRUB** — first line of defense for kernel
+  / DKMS failures. install.sh installs it by default.
+- **Bazzite on disk 1** — second line of defense. Boot from disk 1 (hold
+  firmware boot key), use Artix's filesystem over SSH or via chroot from
+  there.
+- **Last line: `install.sh` + `bootstrap.sh`** — re-run the whole pair
+  on the disk to rebuild from scratch in ~30 min. The package set is in
+  git; the install is idempotent.
 
 ## What to keep in git (this repo) so the box is reproducible
 
@@ -96,5 +107,4 @@ Treat this repo as the source of truth: a dead disk → new disk, `docs/01`,
 - Arch news (Artix tracks this): <https://archlinux.org/news/>
 - Arch wiki — System maintenance: <https://wiki.archlinux.org/title/System_maintenance>
 - Arch wiki — Pacman/Tips and tricks: <https://wiki.archlinux.org/title/Pacman/Tips_and_tricks>
-- Snapper: <https://wiki.archlinux.org/title/Snapper>
 - paru: <https://github.com/Morganamilo/paru>
