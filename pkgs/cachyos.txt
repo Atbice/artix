@@ -26,9 +26,11 @@ linux-cachyos-headers       # MUST install with the kernel — nvidia-dkms uses 
 # linux-lts-headers
 
 # --- userspace tuning -------------------------------------------------------
-# ananicy-cpp: per-app nice / scheduling-class daemon. The -dinit variant
-# is from Artix's [system] repo; CachyOS supplies the rules file below.
-ananicy-cpp-dinit
+# ananicy-cpp: per-app nice / scheduling-class daemon. CachyOS ships
+# `ananicy-cpp` itself (Artix has no -dinit subpackage for it — only the
+# older `ananicy-dinit`). You install the daemon here and write a
+# /etc/dinit.d/ananicy-cpp service file by hand (template in docs/06).
+ananicy-cpp
 cachyos-ananicy-rules-git
 
 # sched-ext userspace schedulers (scx_lavd / scx_rusty / scx_bpfland / ...).

@@ -261,7 +261,7 @@ CachyOS layer was installed. Additional steps:
         - sysctl drops in /etc/sysctl.d/
         - I/O scheduler udev rule in /etc/udev/rules.d/
         - CPU governor dinit service
-        - zram via Artix's zram-dinit (if you want it)
+        - zram via Artix's zramen-dinit (if you want it)
         - scx-scheds + a dinit service file to launch a chosen scheduler
   C4. Snapshot before the next `pacman -Syu`. Rolling-rolling = doubled
       surface area for breakage; the Btrfs snapshot is your rollback.

@@ -15,7 +15,9 @@ for per-app scheduling tweaks.
 - x86-64-v3 optimized rebuilds of normal Arch packages (Zen 3, your 5900X,
   is v3-capable; not v4 — that needs AVX-512 which arrived with Zen 4).
 - `linux-cachyos` kernel (BORE + sched-ext patches by default).
-- `ananicy-cpp` (dinit variant from Artix) + CachyOS's ananicy rules.
+- `ananicy-cpp` (from CachyOS repos; we hand-write its dinit service
+  file — Artix has no `ananicy-cpp-dinit` subpackage, only the older
+  `ananicy-dinit`) + CachyOS's ananicy rules.
 
 **Isn't:**
 - CachyOS-the-distro. We're cherry-picking the repos; init stays dinit.
@@ -24,7 +26,7 @@ for per-app scheduling tweaks.
 - `power-profiles-daemon` / `thermald` (systemd-only on a desktop you
   don't need them).
 - `cachyos-zram-config` (uses `zram-generator`, systemd-only). Use Artix's
-  `zram-dinit` if you want zram.
+  `zramen-dinit` if you want zram.
 
 ## Is it worth the maintenance cost?
 
@@ -89,9 +91,11 @@ bottleneck and the perf delta is hard to measure.
    step pulls the v3 rebuilds in-place. (First-match-wins ordering means
    any package present in both CachyOS and Arch comes from CachyOS.)
 5. **Installs `pkgs/cachyos.txt`** at the end of the script:
-   `linux-cachyos` + `linux-cachyos-headers` + `ananicy-cpp-dinit` +
-   `cachyos-ananicy-rules-git`. nvidia-dkms rebuilds automatically via
-   pacman's DKMS hook when the kernel installs.
+   `linux-cachyos` + `linux-cachyos-headers` + `ananicy-cpp` (the
+   CachyOS-repo build — no -dinit subpackage exists; we write the
+   service file by hand below) + `cachyos-ananicy-rules-git`.
+   nvidia-dkms rebuilds automatically via pacman's DKMS hook when the
+   kernel installs.
 6. **Runs `grub-mkconfig`** so the new kernel shows up at the GRUB menu.
 
 ## After `--cachyos` — verify
@@ -114,8 +118,21 @@ from GRUB's "Advanced options" submenu.
 
 ## Enabling ananicy-cpp
 
-`bootstrap.sh` installs the package but does **not** enable the service
-(it's a tuning daemon; you should know it's running). To turn it on:
+`bootstrap.sh` installs the `ananicy-cpp` package (from the CachyOS
+repo) but it ships only a systemd unit — Artix has no
+`ananicy-cpp-dinit` subpackage. Write a dinit service file by hand:
+
+`/etc/dinit.d/ananicy-cpp`:
+
+```ini
+type            = process
+command         = /usr/bin/ananicy-cpp
+restart         = true
+smooth-recovery = true
+depends-on      = dbus
+```
+
+Then enable it:
 
 ```sh
 sudo dinitctl enable ananicy-cpp
@@ -207,17 +224,17 @@ sudo dinitctl enable cpu-governor
 For a desktop with reliable cooling, `performance` is the right call.
 For lower idle wattage, `schedutil`.
 
-### zram via Artix's zram-dinit
+### zram via Artix's zramen-dinit
 
 If you want zram (compressed swap in RAM — almost free perf for builds
 or running with lots of background tabs):
 
 ```sh
-sudo pacman -S zram-dinit
-sudo dinitctl enable zram
+sudo pacman -S zramen zramen-dinit
+sudo dinitctl enable zramen
 ```
 
-Configure size in `/etc/conf.d/zram` (the Artix package ships a
+Configure size in `/etc/conf.d/zramen` (the Artix package ships a
 commented sample). Half of RAM as `zstd`-compressed zram is the common
 choice on a 64 GB box → 32 GB of swap that's actually fast.
 
@@ -301,7 +318,7 @@ packages will be replaced. Snapshot before doing this too.
 
 - CachyOS repo install (official): <https://wiki.cachyos.org/cachyos_repositories/how_to_add_cachyos_repo/>
 - CachyOS sysctl tunings (reference, do NOT install as a package): <https://github.com/CachyOS/CachyOS-Settings>
-- Artix ananicy-cpp-dinit: <https://gitea.artixlinux.org/packagesA/ananicy-cpp-dinit>
+- ananicy-cpp upstream (we write the dinit service file by hand — see above): <https://gitlab.com/ananicy-cpp/ananicy-cpp>
 - BORE scheduler: <https://github.com/firelzrd/bore-scheduler>
 - sched-ext + scx-scheds: <https://github.com/sched-ext/scx>
 - Arch wiki — Improving performance: <https://wiki.archlinux.org/title/Improving_performance>

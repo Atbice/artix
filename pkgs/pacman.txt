@@ -36,6 +36,7 @@ xdg-desktop-portal-gtk    # GTK fallback portal
 # --- niri + greetd ----------------------------------------------------------
 niri                    # scrollable-tiling Wayland compositor
 greetd
+greetd-dinit            # Artix dinit service file for greetd
 greetd-tuigreet         # TUI greeter (lightweight, terminal-based)
 
 # --- terminal + small utilities ---------------------------------------------

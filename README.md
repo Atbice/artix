@@ -75,7 +75,7 @@ docs/
 pkgs/
   pacman.txt                    official-repo packages (base+desktop+nvidia+gaming+fonts)
   aur.txt                       quickshell + noctalia-shell + faugus-launcher
-  cachyos.txt                   OPTIONAL: linux-cachyos + ananicy-cpp-dinit + cachyos rules
+  cachyos.txt                   OPTIONAL: linux-cachyos + ananicy-cpp + cachyos rules
 etc/
   modprobe.d/nvidia.conf        KMS + suspend memory preservation
   mkinitcpio.conf.d/nvidia.conf nvidia modules baked into initramfs
