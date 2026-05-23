@@ -25,12 +25,47 @@ Artix installer does can ever touch Bazzite.
    or M.2). Yes, really. NVMe: unscrew it. SATA: pull the data cable.
 2. Confirm disk 1 is gone in BIOS (`Setup → Storage`). Only disk 2 and any
    removable media should appear.
-3. USB stick flashed with the **Artix dinit base ISO**
-   (`artix-base-dinit-*.iso`) from <https://artixlinux.org/download.php>. The
-   "base" variant ships only a TTY; we install the desktop ourselves via the
-   bootstrap script — that's the whole point of this repo.
+3. USB stick flashed with the **Artix dinit base ISO** — specifically the
+   **weekly** variant (`artix-base-dinit-YYYYMMDD-x86_64.iso` from the
+   "Weekly ISO images" section at <https://artixlinux.org/download.php>).
+   The stable ISO has been known to fail for manual / scripted installs;
+   the weekly is the supported path. The "base" variant ships only a TTY;
+   we install the desktop ourselves via the bootstrap script.
 
-## Install (terse — full handbook is at <https://wiki.artixlinux.org/Main/Installation>)
+## Install — scripted (recommended)
+
+`install.sh` at the repo root automates everything below. It's
+declarative: flag-driven, prompts only for passwords (never read from
+argv), prints a confirmation summary before any destructive operation,
+and warns (without refusing) if more than one disk is visible.
+
+From the live ISO TTY:
+
+```sh
+# 1. Connect to network (nmtui or connmanctl), then:
+pacman -Sy --noconfirm git
+git clone https://github.com/Atbice/artix.git /root/artix
+cd /root/artix
+
+# 2. List your disks, identify the target:
+lsblk -d -o NAME,SIZE,MODEL,SERIAL
+
+# 3. Run with the locked defaults (gamingbox / bice / Europe/Oslo /
+#    en_US.UTF-8 / no-latin1 keymap). Override any with flags.
+./install.sh --disk /dev/nvme1n1
+```
+
+`./install.sh --help` prints the full flag list. `--dry-run` shows
+every command without touching anything. `--yes` skips the "type
+INSTALL" confirmation (for fully automated rebuilds).
+
+The script does exactly what the "Manual install" section below
+describes, in the same order. Skip ahead to **Plug disk 1 back in**
+after it finishes; if you'd rather understand each step or `install.sh`
+fails partway, the manual procedure stays here as the canonical
+fallback.
+
+## Manual install (fallback — terse; full handbook at <https://wiki.artixlinux.org/Main/Installation>)
 
 1. Boot the ISO, log in as `artix` / `artix`.
 2. `loadkeys <your-layout>` (e.g. `loadkeys no-latin1` for Norwegian).
@@ -105,7 +140,7 @@ Clone this repo into your home dir on the Artix box and run the bootstrap:
 
 ```sh
 sudo pacman -S git
-git clone <this repo> ~/void && cd ~/void
+git clone https://github.com/Atbice/artix.git ~/artix && cd ~/artix
 ./bootstrap.sh   # see README.md for flags
 ```
 

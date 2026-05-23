@@ -81,18 +81,36 @@ etc/
   mkinitcpio.conf.d/nvidia.conf nvidia modules baked into initramfs
   greetd/config.toml            tuigreet → niri-session on tty1
 services.txt                    dinit services to enable via `dinitctl enable`
-bootstrap.sh                    idempotent provisioner (multilib + pacman + paru + AUR + services)
+install.sh                      live-ISO installer (partition + Btrfs + basestrap + chroot config + GRUB)
+bootstrap.sh                    post-install provisioner (multilib + pacman + paru + AUR + services)
 ```
 
 ## Use it
 
-1. Install Artix on the second disk — `docs/01-install-artix.md` (disk 1
-   physically disconnected, two ESPs, Btrfs root, GRUB to disk 2 only
-   with `--removable`).
-2. First boot to a TTY, then:
+The flow is two scripts, run on two different boots:
+
+1. **Install Artix on the second disk** (disk 1 physically disconnected,
+   two ESPs, Btrfs root, GRUB to disk 2 only with `--removable`). From
+   the live `artix-base-dinit-*` ISO TTY:
+   ```sh
+   pacman -Sy --noconfirm git
+   git clone https://github.com/Atbice/artix.git /root/artix
+   cd /root/artix
+   ./install.sh --disk /dev/nvme1n1   # see `./install.sh --help`
+   ```
+   `install.sh` is declarative: locked decisions (dinit, Btrfs + @ / @home
+   / @snapshots, GRUB --removable) are hardcoded; flags are only for the
+   real user-specific bits (`--disk`, `--hostname`, `--user`,
+   `--timezone`, `--locale`, `--keymap`). Passwords are prompted for and
+   never read from argv. `--dry-run` shows every command without touching
+   anything. The full manual procedure stays in `docs/01-install-artix.md`
+   as a fallback. Reboot, remove the USB, re-plug disk 1.
+
+2. **First boot to TTY**, log in as your new user, then provision the
+   desktop:
    ```sh
    sudo pacman -S git
-   git clone <this repo> ~/void && cd ~/void
+   git clone https://github.com/Atbice/artix.git ~/artix && cd ~/artix
    ./bootstrap.sh   # multilib → pacman pkgs → nvidia config → mkinitcpio → dinit services → paru → AUR
    sudo reboot
    ```
