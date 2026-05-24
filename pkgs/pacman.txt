@@ -16,7 +16,15 @@ dinit-rc                # dinit boot scripts metapackage (no-op if already there
 networkmanager
 networkmanager-dinit
 dbus-dinit
-elogind-dinit           # pulls elogind too
+# Session + seat management. Chosen over elogind because elogind is a
+# systemd code fork (independent maintainers, but the source lineage is
+# systemd's logind). turnstile + seatd are from-scratch implementations
+# with no systemd DNA. See docs/adr/0002. Trade-off: turnstile is pre-1.0
+# (0.1.x) and quieter upstream than elogind. Swap-back is 5 lines.
+seatd                   # low-level seat manager (/dev/dri, /dev/input access)
+seatd-dinit
+turnstile               # session manager + logind D-Bus compatibility shim
+turnstile-dinit
 pipewire
 pipewire-pulse          # PulseAudio replacement
 pipewire-alsa

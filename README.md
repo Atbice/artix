@@ -83,13 +83,14 @@ What `install.sh` does, in order:
    Single root, no `/home` split, no Btrfs subvolumes. See
    [`docs/adr/0001-ext4-no-snapshots.md`](./docs/adr/0001-ext4-no-snapshots.md)
    for the trade.
-5. `basestrap`s: `base base-devel dinit dinit-rc elogind-dinit
-   linux linux-lts linux-firmware amd-ucode networkmanager
-   networkmanager-dinit zramen zramen-dinit grub efibootmgr git nano`.
+5. `basestrap`s: `base base-devel dinit dinit-rc seatd seatd-dinit
+   turnstile turnstile-dinit linux linux-lts linux-firmware amd-ucode
+   networkmanager networkmanager-dinit zramen zramen-dinit grub
+   efibootmgr git nano`.
 6. Chroot config: timezone, locale, vconsole keymap, hostname,
    `/etc/hosts`, root + user passwords, sudoers `%wheel`, pacman
    ergonomics (`ParallelDownloads=5`, `Color`, `ILoveCandy`), enables
-   `dbus elogind NetworkManager zramen` via `dinitctl --offline
+   `dbus seatd turnstile NetworkManager zramen` via `dinitctl --offline
    enable`, installs GRUB `--removable` on the target disk's ESP,
    `grub-mkconfig`.
 7. Unmounts everything.
@@ -175,6 +176,7 @@ udev / cpu-governor / scx-scheds) live in
 |---|---|---|
 | OS | **Artix Linux** | Non-systemd with a choice of inits (same appeal as Void); AUR available (Void's missing piece). |
 | Init | **dinit** | Same supervised-init philosophy as runit, but with a real dependency graph, declarative `key = value` service files, and an actively-developed upstream. Artix ships first-party `*-dinit` subpackages for every service we use. |
+| Session + seat | **turnstile + seatd** | No systemd DNA — both are from-scratch implementations (vs. elogind, which is forked from systemd's logind code). turnstile provides the logind D-Bus interface; seatd handles `/dev/dri` + `/dev/input` access. Pre-1.0 trade accepted. See [`docs/adr/0002-turnstile-seatd-over-elogind.md`](./docs/adr/0002-turnstile-seatd-over-elogind.md). |
 | Filesystem | **ext4**, single root | Best raw performance for gaming + dev. Rollback via Bazzite-fallback + idempotent install.sh, not snapshots. See [`docs/adr/0001-ext4-no-snapshots.md`](./docs/adr/0001-ext4-no-snapshots.md). |
 | Kernels | **`linux` + `linux-lts`** | linux as daily driver; linux-lts as the "I can still boot" entry in GRUB when a kernel update breaks nvidia-dkms. |
 | Microcode | **`amd-ucode`** | 5900X gets the latest AMD CPU patches loaded by GRUB at early boot. |
@@ -228,6 +230,13 @@ udev / cpu-governor / scx-scheds) live in
   painful, swapping back to v4 is editing `pkgs/aur.txt` to add
   `quickshell noctalia-shell` and reverting the source-build section
   in bootstrap.sh.
+- **elogind** (evaluated 2026-05-24): rejected on systemd-DNA grounds.
+  elogind is technically a standalone daemon and works perfectly well
+  on Artix, but its source lineage is systemd's `src/login/` (forked
+  + maintained independently since ~2015). We picked the from-scratch
+  combo turnstile+seatd instead. Trade: turnstile is pre-1.0 and
+  upstream-quiet (~7 months since last commit). Swap-back is 5 lines
+  in install.sh + pkgs/pacman.txt — see `docs/adr/0002`.
 - **COSMIC desktop** (evaluated 2026-05): still deferred. labwc +
   Noctalia scratch the "modern non-KDE Wayland" itch. Revisit when its
   NVIDIA + gaming story is solid (Epoch 2/3, ~2027).

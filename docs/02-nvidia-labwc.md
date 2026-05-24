@@ -136,7 +136,10 @@ enable` does that and brings the service up immediately. install.sh
 already enables these via `dinitctl --offline enable` in the chroot:
 
 - `dbus` — system bus (every session needs it)
-- `elogind` — login + seat management
+- `seatd` — low-level seat manager (/dev/dri, /dev/input access)
+- `turnstile` — session manager + logind D-Bus compatibility (replaces
+  elogind; turnstile depends on seatd, so the dinit dep graph starts
+  seatd first automatically)
 - `NetworkManager` — Ethernet/WiFi
 - `zramen` — compressed swap
 

@@ -96,7 +96,8 @@ say "Install plan (about to WIPE $DISK)"
 cat <<EOF
   Target disk      : $DISK   (partitions: $ESP EFI, $ROOTPART ext4 /)
   Filesystem       : ext4 (single root, no /home split, no snapshot tooling)
-  Init             : dinit (dinit + dinit-rc + elogind-dinit)
+  Init             : dinit (dinit + dinit-rc)
+  Session + seat   : turnstile + seatd (no systemd DNA — docs/adr/0002)
   Kernels          : linux (mainline) + linux-lts (boot fallback)
   Microcode        : amd-ucode (auto-loaded by GRUB at early boot)
   Networking       : NetworkManager + networkmanager-dinit (enabled in chroot)
@@ -166,7 +167,9 @@ run "mount $ESP /mnt/boot"
 say "basestrap (Artix's pacstrap)"
 run "basestrap /mnt \
                  base base-devel \
-                 dinit dinit-rc elogind-dinit \
+                 dinit dinit-rc \
+                 seatd seatd-dinit \
+                 turnstile turnstile-dinit \
                  linux linux-lts linux-firmware \
                  amd-ucode \
                  networkmanager networkmanager-dinit \
@@ -190,7 +193,7 @@ if [ "$DRY" = 1 ]; then
   (timezone $TIMEZONE, locale $LOCALE, keymap $KEYMAP, hostname $HOSTNAME_,
    /etc/hosts entries, useradd -m -G wheel -s /bin/bash $USERNAME_,
    sudoers wheel uncomment, pacman.conf ParallelDownloads+Color+ILoveCandy,
-   dinitctl --offline enable dbus elogind NetworkManager zramen,
+   dinitctl --offline enable dbus seatd turnstile NetworkManager zramen,
    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Artix --removable,
    grub-mkconfig -o /boot/grub/grub.cfg)
   CHROOT_END
@@ -238,8 +241,12 @@ grep -q '^ILoveCandy' /etc/pacman.conf || sed -i '/^Color/a ILoveCandy' /etc/pac
 
 # enable services for first boot. dinit isn't PID 1 in this chroot, so we
 # use --offline to just create the boot.d symlink (no attempt to start).
+# Order matters: seatd before turnstile (turnstile reads seats from seatd's
+# socket). NetworkManager after turnstile so it sees an active session for
+# polkit purposes.
 dinitctl --offline enable dbus
-dinitctl --offline enable elogind
+dinitctl --offline enable seatd
+dinitctl --offline enable turnstile
 dinitctl --offline enable NetworkManager
 dinitctl --offline enable zramen
 

@@ -3,7 +3,8 @@
 # Layout: greetd runs as the `greeter` user on tty1, launches tuigreet
 # (a small ncurses login UI), and on successful auth execs `labwc`
 # under the chosen user's PAM session. greetd handles seat/utmp/logind
-# concerns via elogind.
+# concerns via turnstile (session + logind D-Bus) + seatd (seat
+# assignment). See docs/adr/0002-turnstile-seatd-over-elogind.md.
 #
 # Why tuigreet (vs. gtkgreet / a graphical greeter): zero Qt/GTK
 # dependencies, no Wayland-on-NVIDIA quirks at the greeter stage, boots

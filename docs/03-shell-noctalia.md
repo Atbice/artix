@@ -123,7 +123,7 @@ truly minimal box.
   editing `~/src/noctalia-shell` to that ref, then re-running just
   build / install.
 - **Tray icons missing**: confirm `xdg-desktop-portal-wlr` is running.
-  No systemd — on dinit + elogind it's auto-spawned on D-Bus
+  No systemd — on dinit + turnstile it's auto-spawned on D-Bus
   activation when an app first asks. `busctl --user list | grep
   portal` should show it after you open Firefox once.
 

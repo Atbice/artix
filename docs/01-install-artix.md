@@ -87,11 +87,12 @@ fallback.
    mkdir -p /mnt/boot
    mount /dev/nvme1n1p1 /mnt/boot
    ```
-6. `basestrap /mnt base base-devel dinit dinit-rc elogind-dinit linux linux-lts linux-firmware amd-ucode networkmanager networkmanager-dinit zramen zramen-dinit grub efibootmgr git nano`
+6. `basestrap /mnt base base-devel dinit dinit-rc seatd seatd-dinit turnstile turnstile-dinit linux linux-lts linux-firmware amd-ucode networkmanager networkmanager-dinit zramen zramen-dinit grub efibootmgr git nano`
    (`basestrap` is Artix's `pacstrap` equivalent. `dinit` is the daemon;
-   `dinit-rc` is the boot scripts metapackage; `elogind-dinit` pulls
-   `elogind` + its dinit service file; `amd-ucode` is loaded by GRUB at
-   early boot for the 5900X; `linux-lts` is the safety-net kernel.)
+   `dinit-rc` is the boot scripts metapackage; `seatd` + `turnstile`
+   replace elogind for session/seat management — see
+   `docs/adr/0002`; `amd-ucode` is loaded by GRUB at early boot for the
+   5900X; `linux-lts` is the safety-net kernel.)
 7. `fstabgen -U /mnt >> /mnt/etc/fstab`
 8. `artix-chroot /mnt`
 9. Timezone, locale, hostname, root password, **make a normal user** and add
@@ -112,9 +113,11 @@ fallback.
    useradd -m -G wheel -s /bin/bash bice  # change `bice` to your username
    passwd bice
    # uncomment "%wheel ALL=(ALL:ALL) ALL" in /etc/sudoers via `visudo`
-   # Enable services for first boot (offline = create the boot.d symlink only):
+   # Enable services for first boot (offline = create the boot.d symlink only).
+   # Order matters: seatd before turnstile (turnstile reads seats from seatd):
    dinitctl --offline enable dbus
-   dinitctl --offline enable elogind
+   dinitctl --offline enable seatd
+   dinitctl --offline enable turnstile
    dinitctl --offline enable NetworkManager
    dinitctl --offline enable zramen
    ```

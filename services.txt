@@ -8,14 +8,18 @@
 #     symlinks it under /etc/dinit.d/boot.d/ so the `boot` target pulls
 #     it in. NOT a symlink-into-runsvdir like runit.
 #   - inter-service ordering is declared in the service file itself
-#     (`depends-on = dbus`, `waits-for = elogind`), so dinit handles
+#     (`depends-on = dbus`, `waits-for = seatd`), so dinit handles
 #     startup order — we don't enforce it by enable-order here.
 #
-# bootstrap.sh enables each name below via `dinitctl enable`. If the
-# package providing a service ships a /etc/dinit.d/<name> file we enable
-# it; if no service file exists (e.g. some elogind setups are
-# dbus/socket-activated only), bootstrap.sh skips it without failing.
+# Order in this file is informational. install.sh already enables
+# dbus + seatd + turnstile + NetworkManager + zramen in the chroot, so
+# bootstrap.sh's job is mainly the desktop-side services like greetd.
+#
+# Why seatd + turnstile (not elogind): elogind is a fork of systemd's
+# logind. turnstile + seatd are from-scratch session/seat daemons with
+# no systemd DNA. See docs/adr/0002-turnstile-seatd-over-elogind.md.
 dbus
+seatd
+turnstile
 NetworkManager
-elogind
 greetd
