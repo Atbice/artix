@@ -1,13 +1,16 @@
 # Installed to /etc/greetd/config.toml by bootstrap.sh.
 #
 # Layout: greetd runs as the `greeter` user on tty1, launches tuigreet
-# (a small ncurses login UI), and on successful auth execs `niri-session`
+# (a small ncurses login UI), and on successful auth execs `labwc`
 # under the chosen user's PAM session. greetd handles seat/utmp/logind
 # concerns via elogind.
 #
 # Why tuigreet (vs. gtkgreet / a graphical greeter): zero Qt/GTK
 # dependencies, no Wayland-on-NVIDIA quirks at the greeter stage, boots
-# instantly. We get to Wayland *inside* the user's niri session.
+# instantly. We get to Wayland *inside* the user's labwc session.
+#
+# labwc handles XDG_CURRENT_DESKTOP=labwc and XDG_SESSION_TYPE=wayland
+# itself in recent versions, so no wrapper script is needed.
 #
 # To enable single-user autologin (skip the password prompt entirely),
 # replace the `command` line with the commented `initial_session` block
@@ -17,11 +20,11 @@
 vt = 1
 
 [default_session]
-command = "tuigreet --remember --time --asterisks --cmd niri-session"
+command = "tuigreet --remember --time --asterisks --cmd labwc"
 user = "greeter"
 
 # --- Autologin alternative (uncomment + set user, comment out the block
 #     above):
 # [initial_session]
-# command = "niri-session"
+# command = "labwc"
 # user = "bice"

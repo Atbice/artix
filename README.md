@@ -1,20 +1,21 @@
-# Artix Linux — lean gaming box (niri + Noctalia, native Steam + Faugus)
+# Artix Linux — lean gaming box (labwc + Noctalia v5, native Steam + Faugus)
 
 A **minimal, clean** Artix Linux (dinit) install whose only job is: boot into
-**niri** (scrollable-tiling Wayland), present a **Noctalia** desktop shell,
-and run **Steam + Lutris + Faugus** with the **RTX 3090** driver correct.
-Dual-booted on a separate disk; Bazzite stays untouched.
+**labwc** (Wayland stackable compositor, Openbox-style), present
+**Noctalia v5** as the desktop shell, and run **Steam + Lutris + Faugus**
+with the **RTX 3090** driver correct. Dual-booted on a separate disk;
+Bazzite stays untouched.
 
 > **Two scripts.** `install.sh` runs from the live ISO and produces a
 > bootable Artix on disk 2. `bootstrap.sh` runs after first boot and
-> turns that bare Artix into niri + Noctalia + Steam. Both are
+> turns that bare Artix into labwc + Noctalia v5 + Steam. Both are
 > idempotent. Re-running them IS your recovery story (`docs/adr/0001`).
 
 ---
 
 # Install walkthrough
 
-The path from a blank disk to a working niri desktop, in order. Skip
+The path from a blank disk to a working labwc desktop, in order. Skip
 nothing — the disk-safety pattern is load-bearing.
 
 ## 0. Pre-flight checklist
@@ -128,10 +129,10 @@ Flags: `--no-aur` (skip paru + AUR — Noctalia not installed) ·
 `--no-update` · `--cachyos` (optional layer, see
 [`docs/06-cachyos-layer.md`](./docs/06-cachyos-layer.md)) · `--dry-run`.
 
-After reboot: tuigreet on tty1 → log in → niri session, Noctalia
-auto-starts via the `spawn-at-startup` line in
-`~/.config/niri/config.kdl` (sample in
-[`docs/02-nvidia-niri.md`](./docs/02-nvidia-niri.md)).
+After reboot: tuigreet on tty1 → log in → labwc session, Noctalia v5
+auto-starts via the `noctalia &` line in
+`~/.config/labwc/autostart` (sample in
+[`docs/02-nvidia-labwc.md`](./docs/02-nvidia-labwc.md)).
 
 ## 6. Verify desktop
 
@@ -139,14 +140,15 @@ auto-starts via the `spawn-at-startup` line in
 nvidia-smi                                            # 3090 visible
 cat /sys/module/nvidia_drm/parameters/modeset         # → Y
 echo $XDG_SESSION_TYPE                                # → wayland
-echo $XDG_CURRENT_DESKTOP                             # → niri
+echo $XDG_CURRENT_DESKTOP                             # → labwc
 ```
 
 Steam → log in → Settings → Compatibility → enable Steam Play for all
 titles. Faugus and Lutris are in Noctalia's app launcher.
 
-VRR: per-output `variable-refresh-rate` in
-`~/.config/niri/config.kdl`.
+VRR + tearing: `<adaptiveSync>fullscreen</adaptiveSync>` and
+`<allowTearing>fullscreen</allowTearing>` in
+`~/.config/labwc/rc.xml`.
 
 ## 7. Optional: CachyOS perf layer
 
@@ -178,8 +180,8 @@ udev / cpu-governor / scx-scheds) live in
 | Microcode | **`amd-ucode`** | 5900X gets the latest AMD CPU patches loaded by GRUB at early boot. |
 | Networking | **NetworkManager + networkmanager-dinit** | Matches Noctalia's network widget (talks to NM over D-Bus). `nmtui` handles WiFi from a TTY when needed. |
 | Swap | **`zramen`** (compressed RAM swap) | ~8 GB zstd-compressed zram on 32 GB → ~16–20 GB effective. No disk wear. No hibernate. |
-| Compositor | **niri** (Wayland, scrollable-tiling) | Modern Rust/smithay compositor with explicit NVIDIA support. VRR works on the proprietary driver in 2026. |
-| Shell | **Noctalia** (via Quickshell) | QML-based desktop shell. Status bar + launcher + notifications + control center in one. AUR-packaged. |
+| Compositor | **labwc** (Wayland, stackable, Openbox-style) | wlroots-based, mature ecosystem, conventional floating + light tiling. Adaptive sync + tearing-control protocols supported. |
+| Shell | **Noctalia v5** (source-built from `v5` branch) | Native Wayland/GLES rewrite — no Qt/GTK/Quickshell dependency. Pre-alpha upstream, breaking changes expected. v4 is the AUR-packaged conservative path; we bet on v5. See [`docs/03-shell-noctalia.md`](./docs/03-shell-noctalia.md). |
 | Display manager | **greetd + tuigreet** | TUI greeter on tty1 — no Qt/GTK at the greeter stage, no Wayland-NVIDIA greeter quirks, instant. |
 | AUR helper | **paru** (`paru-bin`) | Bootstrapped from a one-time clone. Modern, fast, sensible defaults. |
 | Driver | `nvidia-dkms` + `lib32-nvidia-utils` | RTX 3090 = Ampere → current branch. 32-bit libs mandatory or games won't launch. |
@@ -190,14 +192,18 @@ udev / cpu-governor / scx-scheds) live in
 
 ### Honest notes
 
-- **No HDR** under niri. We're explicit: you don't use it, so this
+- **No HDR** under labwc. We're explicit: you don't use it, so this
   isn't a loss. If you ever want HDR for a specific game, run it
   through gamescope (`pkgs/pacman.txt` has it commented; `docs/04` explains).
-- **VRR** works — per-output `variable-refresh-rate` in
-  `~/.config/niri/config.kdl` (see `docs/02-nvidia-niri.md`).
-- **Quickshell + Noctalia from AUR** are the load-bearing pieces. AUR
-  packages are user-maintained — `paru` shows the PKGBUILD before each
-  upgrade. The non-git variants (which we use) track tagged releases.
+- **VRR + tearing** work — `<adaptiveSync>fullscreen</adaptiveSync>`
+  and `<allowTearing>fullscreen</allowTearing>` in
+  `~/.config/labwc/rc.xml` (see `docs/02-nvidia-labwc.md`).
+- **Noctalia v5 is the load-bearing risk**. It's pre-alpha upstream
+  ("expect breaking configuration and behavior changes"). bootstrap.sh
+  is built to re-fetch + rebuild idempotently, but if upstream pushes
+  a bad commit you can pin to a known-good SHA — see
+  `docs/05-maintenance.md`. The conservative fallback is `noctalia-shell`
+  v4 from AUR, swappable in a few minutes.
 
 ## Considered & deferred
 
@@ -208,7 +214,21 @@ udev / cpu-governor / scx-scheds) live in
 - **Stay on Void Linux** (evaluated 2026-05-22): rejected — Quickshell
   is not in `void-packages`, source-builds on a rolling distro are
   fragile, unofficial single-maintainer xbps repos are the COSMIC-trap.
-- **COSMIC desktop** (evaluated 2026-05): still deferred. niri +
+  (We've since dropped Quickshell entirely in favor of Noctalia v5's
+  native-Wayland rewrite, but the Void packaging argument still applies
+  to the v5 build-dep chain.)
+- **niri** (evaluated 2026-05-22, flipped 2026-05-24): the original
+  pick. Scrollable-tiling Rust/smithay compositor. Flipped to labwc
+  for the more conventional floating+tiling workflow and the larger
+  wlroots ecosystem. niri stays a perfectly valid alternative if
+  scrollable-tiling clicks for you later.
+- **Noctalia v4 (AUR)** (evaluated 2026-05-24): the conservative
+  path. Stable QML/Quickshell shell at v4.7.7. We chose v5 instead
+  for the native-Wayland future-proofing — but if v5 churn becomes
+  painful, swapping back to v4 is editing `pkgs/aur.txt` to add
+  `quickshell noctalia-shell` and reverting the source-build section
+  in bootstrap.sh.
+- **COSMIC desktop** (evaluated 2026-05): still deferred. labwc +
   Noctalia scratch the "modern non-KDE Wayland" itch. Revisit when its
   NVIDIA + gaming story is solid (Epoch 2/3, ~2027).
 - **runit / OpenRC / s6** (other Artix init systems): dinit picked.
@@ -222,8 +242,8 @@ udev / cpu-governor / scx-scheds) live in
 README.md                       this file
 docs/
   01-install-artix.md           Artix dinit install, dual-boot, two ESPs, ext4
-  02-nvidia-niri.md             RTX 3090 + niri + greetd + dinit services
-  03-shell-noctalia.md          Quickshell + Noctalia from AUR, autostart, fonts/portals
+  02-nvidia-labwc.md            RTX 3090 + labwc + greetd + dinit services
+  03-shell-noctalia.md          Noctalia v5 source build, autostart, fonts/portals
   04-gaming.md                  native Steam + Lutris + Faugus (AUR), gamemode, mangohud
   05-maintenance.md             rolling-release survival (pacman + paru + linux-lts fallback)
   06-cachyos-layer.md           OPTIONAL: x86-64-v3 rebuilds + linux-cachyos + ananicy
@@ -231,12 +251,12 @@ docs/
     0001-ext4-no-snapshots.md   why ext4 over Btrfs (rollback strategy)
 pkgs/
   pacman.txt                    official-repo packages (base+desktop+nvidia+gaming+fonts)
-  aur.txt                       quickshell + noctalia-shell + faugus-launcher
+  aur.txt                       faugus-launcher (+ commented extras). Noctalia v5 not on AUR — source-built by bootstrap.sh.
   cachyos.txt                   OPTIONAL: linux-cachyos + ananicy-cpp + cachyos rules
 etc/
   modprobe.d/nvidia.conf        KMS + suspend memory preservation
   mkinitcpio.conf.d/nvidia.conf nvidia modules baked into initramfs
-  greetd/config.toml            tuigreet → niri-session on tty1
+  greetd/config.toml            tuigreet → labwc on tty1
 services.txt                    dinit services to enable via `dinitctl enable`
 install.sh                      live-ISO installer (partition + ext4 + basestrap + chroot config + GRUB)
 bootstrap.sh                    post-install provisioner (multilib + pacman + paru + AUR + services)

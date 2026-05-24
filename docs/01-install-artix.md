@@ -151,7 +151,7 @@ git clone https://github.com/Atbice/artix.git ~/artix && cd ~/artix
 ./bootstrap.sh   # see README.md for flags
 ```
 
-After bootstrap finishes and you reboot, you'll land in tuigreet → niri.
-Continue with [`02-nvidia-niri.md`](./02-nvidia-niri.md) to verify the
-NVIDIA + niri setup, then [`03-shell-noctalia.md`](./03-shell-noctalia.md)
-for the desktop shell.
+After bootstrap finishes and you reboot, you'll land in tuigreet → labwc.
+Continue with [`02-nvidia-labwc.md`](./02-nvidia-labwc.md) to verify the
+NVIDIA + labwc setup, then [`03-shell-noctalia.md`](./03-shell-noctalia.md)
+for the Noctalia v5 shell (source-built).

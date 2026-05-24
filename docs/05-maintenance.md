@@ -60,14 +60,34 @@ disaster-recovery plan and don't bolt a snapshot tool on top.
 
 - AUR packages are user-submitted — `paru` shows the PKGBUILD diff before
   each upgrade. Read it; it's the only review step.
-- Pinned-to-git variants (`quickshell-git`, `noctalia-shell-git`) rebuild
-  from upstream HEAD on every upgrade. Convenient when you want the latest
-  shell fix; painful when upstream pushes a breaking change. The non-git
-  variants (which `pkgs/aur.txt` uses) track tagged releases and are
-  generally safer.
-- After a Quickshell update: if Noctalia won't start, try `qs -c noctalia`
-  from foot and read the QML error. Downgrade by rebuilding the old
-  PKGBUILD cached in `~/.cache/paru/clone/`.
+- `pkgs/aur.txt` currently only carries `faugus-launcher`; the heavy
+  shell dependencies (Noctalia v5) live as a source build, not via AUR.
+
+## Noctalia v5 (source build) — keeping it current
+
+bootstrap.sh's section 7b clones the `v5` branch into
+`~/src/noctalia-shell` and stamps `/usr/local/share/noctalia/.installed-sha`
+after each successful build. Re-running `bootstrap.sh` does:
+
+```sh
+cd ~/src/noctalia-shell
+git fetch origin v5 && git reset --hard origin/v5
+# if HEAD changed since last install, rebuild + reinstall:
+just configure release && just build release && sudo just install release
+```
+
+- **Breaking change after rebuild**: v5 is upstream-stamped as
+  early-development. If the shell breaks after a `bootstrap.sh` pass,
+  `git log --oneline -20` in `~/src/noctalia-shell` and pin to a
+  known-good SHA: `git reset --hard <sha>` then rebuild.
+- **Want to skip a bad day on upstream**: `touch
+  ~/src/noctalia-shell/.skip-bootstrap` and add a guard to that section
+  if you set this up frequently. (Out of scope right now; the manual
+  pin-then-rebuild flow above is enough.)
+- **Eventually**: when v5 lands on AUR, move it to `pkgs/aur.txt` and
+  drop the source-build section + build deps. See
+  [docs/03-shell-noctalia.md](./03-shell-noctalia.md) for the migration
+  shape.
 
 ## Recovery toolkit (keep on a USB stick)
 

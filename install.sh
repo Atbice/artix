@@ -29,7 +29,7 @@
 # After install completes: reboot, remove the USB, re-plug the other
 # OS's disk (if you unplugged it), boot Artix on tty1 as the new user,
 # clone this repo and run ./bootstrap.sh to provision the desktop
-# (niri + Noctalia + NVIDIA + Steam + ...).
+# (labwc + Noctalia v5 + NVIDIA + Steam + ...).
 set -eu
 
 DISK=""
@@ -162,7 +162,7 @@ run "mount $ESP /mnt/boot"
 # --- basestrap -------------------------------------------------------------
 # Enough to boot Artix into a working TTY with network + zram + a fallback
 # kernel, so bootstrap.sh can be cloned in on first boot. Desktop packages
-# (niri, Noctalia, Steam, NVIDIA) are bootstrap.sh's job.
+# (labwc, Noctalia v5, Steam, NVIDIA) are bootstrap.sh's job.
 say "basestrap (Artix's pacstrap)"
 run "basestrap /mnt \
                  base base-devel \

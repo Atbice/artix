@@ -2,9 +2,10 @@
 # itself is bootstrapped from a git clone of paru-bin.
 # One per line, '#' comments and blank lines ignored.
 
-# --- shell (Noctalia + its runtime) -----------------------------------------
-quickshell              # Qt6/QML-based desktop shell runtime (Noctalia depends on it)
-noctalia-shell          # the actual Noctalia QML shell config bundle
+# --- shell ------------------------------------------------------------------
+# Noctalia v5 (native Wayland/GLES rewrite) is NOT on AUR yet — only the
+# legacy v4 (QML/Quickshell) is. bootstrap.sh builds v5 from source instead
+# (see docs/03-shell-noctalia.md). When v5 lands on AUR, move it here.
 
 # --- gaming -----------------------------------------------------------------
 faugus-launcher         # Faugus, the clean way: AUR package, no source build,

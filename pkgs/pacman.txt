@@ -23,21 +23,44 @@ pipewire-alsa
 wireplumber
 xdg-utils
 polkit
-polkit-gnome            # generic polkit agent; works under niri
+polkit-gnome            # generic polkit agent; works under labwc
 
 # --- display server / portals -----------------------------------------------
-# niri is Wayland-native; no Xorg server needed for the session, but
-# xorg-xwayland is required for any X11 client (most games, older apps).
+# labwc is Wayland-native (wlroots-based); no Xorg server needed for the
+# session, but xorg-xwayland is required for any X11 client (most games,
+# older apps).
 xorg-xwayland
 xdg-desktop-portal
-xdg-desktop-portal-gnome  # screencast + file pickers; works well with niri
-xdg-desktop-portal-gtk    # GTK fallback portal
+xdg-desktop-portal-wlr    # screencast + screen-share for wlroots compositors
+xdg-desktop-portal-gtk    # GTK file pickers fallback
 
-# --- niri + greetd ----------------------------------------------------------
-niri                    # scrollable-tiling Wayland compositor
+# --- labwc + greetd ---------------------------------------------------------
+labwc                   # Wayland stackable compositor (wlroots, Openbox-style config)
 greetd
 greetd-dinit            # Artix dinit service file for greetd
 greetd-tuigreet         # TUI greeter (lightweight, terminal-based)
+
+# --- Noctalia v5 build deps (source-built by bootstrap.sh) ------------------
+# v5 is a native Wayland/GLES shell, NOT QML/Quickshell. Pacman doesn't have
+# it yet (only v4 is on AUR), so bootstrap.sh clones the v5 branch and runs
+# `just configure release && just build release && sudo just install release`.
+# These are the upstream Arch deps from the v5 README:
+meson
+just                    # command runner used by the v5 Justfile
+wayland-protocols
+libglvnd                # libGL/libEGL umbrella
+freetype2
+fontconfig
+cairo
+pango
+harfbuzz
+libxkbcommon
+glib2
+sdbus-cpp
+libpipewire
+pam
+libwebp
+librsvg
 
 # --- terminal + small utilities ---------------------------------------------
 foot                    # tiny, fast Wayland-native terminal
@@ -55,7 +78,7 @@ playerctl               # media-key control for media players
 pavucontrol             # PipeWire/Pulse mixer GUI
 
 # --- file management --------------------------------------------------------
-nautilus                # GTK file manager — works under niri, no KDE deps
+nautilus                # GTK file manager — works under labwc, no KDE deps
 
 # --- nvidia (RTX 3090, Ampere → current branch, DKMS) -----------------------
 linux-headers           # required for DKMS (mainline kernel)

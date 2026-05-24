@@ -3,9 +3,10 @@
 # Run ON THE NEW ARTIX BOX after a clean install (docs/01-install-artix.md).
 # Safe to re-run. Refuses to run on non-Artix. Never touches disk 1 / bootloader.
 #
-# Scope: RTX 3090 + niri (Wayland) + Noctalia (Quickshell) + greetd/tuigreet
-#        + native Steam + Lutris + Faugus (AUR). Multilib is enabled by this
-#        script (mandatory for 32-bit nvidia libs and native Steam).
+# Scope: RTX 3090 + labwc (Wayland) + Noctalia v5 (source-built native shell)
+#        + greetd/tuigreet + native Steam + Lutris + Faugus (AUR). Multilib
+#        is enabled by this script (mandatory for 32-bit nvidia libs and
+#        native Steam).
 #
 # Usage:
 #   ./bootstrap.sh [--no-aur] [--no-update] [--cachyos] [--dry-run]
@@ -202,7 +203,39 @@ if [ "$DO_AUR" = 1 ]; then
     fi
   fi
 else
-  warn "--no-aur: skipped paru bootstrap AND pkgs/aur.txt — Noctalia not installed."
+  warn "--no-aur: skipped paru bootstrap AND pkgs/aur.txt."
+fi
+
+# --- 7b. Noctalia v5 (built from source — not on AUR yet) -------------------
+# v5 is a native Wayland/GLES rewrite. Pacman has the build deps (see
+# pkgs/pacman.txt's "Noctalia v5 build deps" block); we clone + build + install.
+# Idempotent: if /usr/local/bin/noctalia exists and the source tree's HEAD
+# matches origin/v5, skip the rebuild.
+NOCTALIA_SRC="$TARGET_HOME/src/noctalia-shell"
+say "Building Noctalia v5 from source (branch: v5)"
+if [ "$DRY" = 1 ]; then
+  echo "  [dry-run] git clone -b v5 https://github.com/noctalia-dev/noctalia-shell.git $NOCTALIA_SRC"
+  echo "  [dry-run] cd $NOCTALIA_SRC && just configure release && just build release"
+  echo "  [dry-run] sudo just install release"
+else
+  if [ ! -d "$NOCTALIA_SRC/.git" ]; then
+    sudo -u "$TARGET_USER" sh -c "mkdir -p $TARGET_HOME/src && git clone -b v5 https://github.com/noctalia-dev/noctalia-shell.git $NOCTALIA_SRC"
+  else
+    echo "  source tree exists, fetching latest"
+    sudo -u "$TARGET_USER" sh -c "cd $NOCTALIA_SRC && git fetch origin v5 && git reset --hard origin/v5"
+  fi
+  LOCAL_SHA=$(sudo -u "$TARGET_USER" sh -c "cd $NOCTALIA_SRC && git rev-parse HEAD")
+  INSTALLED_SHA=""
+  [ -f /usr/local/share/noctalia/.installed-sha ] && INSTALLED_SHA=$(cat /usr/local/share/noctalia/.installed-sha 2>/dev/null || true)
+  if [ "$LOCAL_SHA" = "$INSTALLED_SHA" ] && [ -x /usr/local/bin/noctalia ]; then
+    echo "  Noctalia v5 already built at $LOCAL_SHA — skipping rebuild"
+  else
+    sudo -u "$TARGET_USER" sh -c "cd $NOCTALIA_SRC && just configure release && just build release"
+    (cd "$NOCTALIA_SRC" && $SUDO just install release)
+    $SUDO mkdir -p /usr/local/share/noctalia
+    echo "$LOCAL_SHA" | $SUDO tee /usr/local/share/noctalia/.installed-sha >/dev/null
+    echo "  Noctalia v5 installed at $LOCAL_SHA"
+  fi
 fi
 
 # --- 8. (optional) CachyOS kernel + tuning daemons --------------------------
@@ -231,22 +264,24 @@ cat <<'EOF'
 
 Next steps:
   1. sudo reboot
-  2. tuigreet appears on tty1 — log in (session command is "niri-session";
+  2. tuigreet appears on tty1 — log in (session command is "labwc";
      leave it as-is).
   3. Verify the basics:
        nvidia-smi
        cat /sys/module/nvidia_drm/parameters/modeset      # -> Y
        echo $XDG_SESSION_TYPE                              # -> wayland
-       echo $XDG_CURRENT_DESKTOP                           # -> niri
+       echo $XDG_CURRENT_DESKTOP                           # -> labwc
        vkcube                                              # 3090 renders
-  4. Start Noctalia: it should auto-start via the niri config; if not,
-     `qs -c noctalia` from a foot terminal. See docs/03-shell-noctalia.md
-     for the niri spawn-at-startup config snippet.
+  4. Start Noctalia v5: it should auto-start via ~/.config/labwc/autostart;
+     if not, `noctalia` from a foot terminal. See docs/03-shell-noctalia.md
+     for the autostart snippet. Note: v5 is early development — expect
+     breaking changes when you re-run bootstrap.sh (which git-pulls + rebuilds).
   5. Steam: log in -> Settings -> Compatibility -> enable "Steam Play for
      all other titles". Install a game.
   6. Faugus Launcher: launch from Noctalia's app launcher (installed via AUR).
      Non-Steam / Epic / GOG: Faugus or Lutris.
-  7. VRR: per-output `enable-vrr` in ~/.config/niri/config.kdl.
+  7. VRR + tearing: configure outputs via ~/.config/labwc/rc.xml (see
+     docs/02-nvidia-labwc.md).
 EOF
 if [ "$DO_CACHYOS" = 1 ]; then
 cat <<'EOF'

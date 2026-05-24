@@ -56,7 +56,7 @@ bottleneck and the perf delta is hard to measure.
 ## Prereqs
 
 - Base `./bootstrap.sh` has run successfully and you've rebooted into a
-  working niri session at least once.
+  working labwc session at least once.
 - `linux-lts` is installed (install.sh does this by default) so you
   have a fallback boot entry if the Cachy kernel breaks nvidia-dkms on
   first boot. With ext4 + no Btrfs snapshots, this is your rollback
